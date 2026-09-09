@@ -1,0 +1,7 @@
+target
+.git
+*.pdf
+*.key
+*.receipt
+*.sqlite3*
+**/approver.key

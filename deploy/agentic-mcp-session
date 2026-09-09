@@ -1,0 +1,18 @@
+#!/bin/sh
+# Install root-owned at /usr/local/libexec/agentic-mcp-session (0755).
+# OpenSSH ForceCommand calls this; never evaluate SSH_ORIGINAL_COMMAND.
+set -eu
+umask 077
+tenant=$(/usr/bin/id -un)
+case "$tenant" in
+    ''|*[!a-z0-9_-]*) exit 64 ;;
+esac
+# No inherited loader, Rust, database, or client-provided configuration variables.
+# A one-hour hard limit also ends clients that hold stdin open indefinitely.
+exec /usr/bin/env -i PATH=/usr/bin:/bin LANG=C.UTF-8 \
+    /usr/bin/timeout --signal=TERM --kill-after=10s 1h \
+    /usr/local/bin/agentic-mcp serve \
+    --root "/srv/agentic-mcp/$tenant/files" \
+    --state-dir "/var/lib/agentic-mcp/$tenant" \
+    --approver "/etc/agentic-mcp/$tenant/approver.json" \
+    --owner "$tenant"

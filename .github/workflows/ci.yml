@@ -1,0 +1,26 @@
+name: Rust
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Rust
+        run: rustup toolchain install 1.88.0 --profile minimal --component rustfmt,clippy
+      - run: cargo +1.88.0 fmt --all -- --check
+      - run: cargo +1.88.0 test --locked --all-targets
+      - run: cargo +1.88.0 clippy --locked --all-targets -- -D warnings
+      - run: cargo +1.88.0 run --locked --example delegation
+      - run: cargo +1.88.0 build --locked --release --bin agentic-mcp
+      - name: Dependency audit
+        run: |
+          cargo +1.88.0 install cargo-audit --version 0.22.2 --locked --no-default-features
+          cargo audit
+      - name: Validate deployment wrapper syntax
+        run: sh -n deploy/agentic-mcp-session

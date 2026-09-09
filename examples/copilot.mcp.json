@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "agentic-files": {
+      "type": "stdio",
+      "command": "/usr/local/bin/agentic-mcp",
+      "args": [
+        "serve",
+        "--root", "/service/files",
+        "--state-dir", "/service/state",
+        "--approver", "/service/approver.json",
+        "--owner", "alice"
+      ]
+    }
+  }
+}

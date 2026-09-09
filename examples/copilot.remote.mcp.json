@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "agentic-files": {
+      "type": "stdio",
+      "command": "ssh",
+      "args": [
+        "-T", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
+        "-o", "ClearAllForwardings=yes", "-o", "ServerAliveInterval=30",
+        "-o", "ServerAliveCountMax=3", "alice@mcp.example.org"
+      ]
+    }
+  }
+}

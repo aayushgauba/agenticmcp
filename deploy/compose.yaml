@@ -1,0 +1,24 @@
+# One isolated instance per tenant. The operator attaches MCP stdin, not an HTTP port.
+# Bind mount directories must already exist, be UID/GID 10001, and mode 0700.
+services:
+  agentic-alice:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    user: "10001:10001"
+    read_only: true
+    network_mode: none
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 32
+    mem_limit: 256m
+    cpus: 1.0
+    stdin_open: true
+    tty: false
+    command: [serve, --root, /data, --state-dir, /state, --approver, /config/approver.json, --owner, alice]
+    volumes:
+      - /srv/agentic-mcp/alice/files:/data
+      - /var/lib/agentic-mcp/alice:/state
+      - /etc/agentic-mcp/alice/approver.json:/config/approver.json:ro
+    tmpfs:
+      - /tmp:size=8m,mode=1777

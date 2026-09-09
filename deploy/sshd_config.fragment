@@ -1,0 +1,15 @@
+# Review and merge into sshd_config; validate with sshd -t before reload.
+# Provision only dedicated service accounts in this group.
+Match Group agentic-mcp
+    AuthenticationMethods publickey
+    PubkeyAuthentication yes
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    AuthorizedKeysFile /etc/agentic-mcp/%u/authorized_keys
+    ForceCommand /usr/local/libexec/agentic-mcp-session
+    DisableForwarding yes
+    PermitTTY no
+    PermitUserRC no
+    PermitUserEnvironment no
+    MaxSessions 1
+Match all

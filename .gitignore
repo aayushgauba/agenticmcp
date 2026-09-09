@@ -1,0 +1,22 @@
+/target/
+
+# Local configuration and agent workspace metadata
+/.vscode/
+/.agents/
+/.codex/
+
+# Credentials and runtime state
+.env
+.env.*
+*.key
+*.pem
+*.receipt
+*.sqlite3*
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+approval.txt
+
+# Downloaded reference papers
+/*.pdf
