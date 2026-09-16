@@ -1,0 +1,33 @@
+{
+  "name": "agentic-workspace",
+  "displayName": "Agentic Workspace MCP",
+  "description": "Review and approve MCP file changes in your VS Code workspace.",
+  "version": "0.1.1",
+  "publisher": "agentic-local",
+  "license": "UNLICENSED",
+  "engines": { "vscode": "^1.103.0" },
+  "categories": ["Other"],
+  "extensionKind": ["workspace"],
+  "main": "./dist/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "capabilities": {
+    "untrustedWorkspaces": { "supported": false },
+    "virtualWorkspaces": { "supported": false }
+  },
+  "contributes": {
+    "mcpServerDefinitionProviders": [{ "id": "agentic-workspace.server", "label": "Agentic Workspace" }],
+    "commands": [
+      { "command": "agenticWorkspace.review", "title": "Agentic Workspace: Review Pending Change" },
+      { "command": "agenticWorkspace.status", "title": "Agentic Workspace: Show Status" },
+      { "command": "agenticWorkspace.servers", "title": "Agentic Workspace: Open MCP Servers" }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "test": "npm run compile && node --test test/*.test.cjs",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package --allow-missing-repository"
+  },
+  "dependencies": { "@modelcontextprotocol/sdk": "^1.17.5", "zod": "^3.25.76" },
+  "devDependencies": { "@types/node": "^22.0.0", "@types/vscode": "1.103.0", "@vscode/vsce": "^3.6.0", "typescript": "^5.9.2" }
+}
