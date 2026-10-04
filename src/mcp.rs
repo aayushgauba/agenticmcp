@@ -2,6 +2,7 @@
 mod files;
 mod store;
 mod transport;
+mod workspace;
 
 use crate::{crypto, *};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as B64};
@@ -114,6 +115,10 @@ impl FileServer {
     }
 
     fn authorize(&self, proposal: &Proposal) -> McpResult<(Authority, Permit)> {
+        Self::authorize_proposal(proposal)
+    }
+
+    fn authorize_proposal(proposal: &Proposal) -> McpResult<(Authority, Permit)> {
         // Tokens never leave this trusted adapter. A fresh ephemeral authority is
         // sufficient per execution; durable replay/idempotency is enforced in SQLite.
         let mut authority = Authority::new(ISSUER)?;
@@ -128,7 +133,7 @@ impl FileServer {
                 description: "Replace an approved file".into(),
                 parameters: json!({"type":"object"}),
             }],
-            configuration: json!({"adapter":"stdio-durable-v1", "root":self.data.path, "owner":self.owner}),
+            configuration: json!({"adapter":"stdio-durable-v1", "root":proposal.root, "owner":proposal.owner}),
         };
         authority.register_client("mcp-adapter", client.public_key())?;
         authority.register_agent(
@@ -156,8 +161,8 @@ impl FileServer {
                 requires_approval: true,
             }],
         })?;
-        let run = authority.start_run(&proposal.id, &self.owner)?;
-        authority.approve(&run, "apply", &self.owner)?;
+        let run = authority.start_run(&proposal.id, &proposal.owner)?;
+        authority.approve(&run, "apply", &proposal.owner)?;
         let time = now()?;
         let grant = SignedGrant::sign(
             "mcp-adapter",
@@ -300,11 +305,15 @@ impl FileServer {
     }
 }
 
-fn load_proposal(path: &Path) -> McpResult<Proposal> {
+fn load_proposal(path: &Path, workspace: bool) -> McpResult<Proposal> {
     let value: Value = serde_json::from_slice(&read_limited(path, 131072)?)?;
     let proposal: Proposal =
         serde_json::from_value(value.get("proposal").cloned().unwrap_or(value))?;
-    filename(&proposal.path)?;
+    if workspace {
+        workspace::validate_path(&proposal.path)?;
+    } else {
+        filename(&proposal.path)?;
+    }
     if proposal.replacement.len() > MAX_FILE || proposal.expires_at <= now()? {
         return Err("oversized or expired proposal".into());
     }
@@ -313,6 +322,12 @@ fn load_proposal(path: &Path) -> McpResult<Proposal> {
 
 /// Entry point for `agentic-mcp serve|keygen|review|approve`.
 pub fn cli(args: Vec<String>) -> McpResult<()> {
+    if args
+        .first()
+        .is_some_and(|command| command == "serve-workspace" || command == "check-workspace")
+    {
+        return workspace::cli(&args[1..], args[0] == "check-workspace");
+    }
     if args.is_empty() || args == ["--help"] {
         println!(
             "agentic-mcp serve --root DIR --state-dir STATE --approver PUBLIC.json --owner NAME\nagentic-mcp audit --root DIR --state-dir STATE --approver PUBLIC.json --owner NAME\nagentic-mcp backup --root DIR --state-dir STATE --approver PUBLIC.json --owner NAME --output BACKUP.sqlite3\nagentic-mcp resolve --root DIR --state-dir STATE --approver PUBLIC.json --owner NAME --proposal-id ID --outcome applied|aborted\nagentic-mcp keygen --private SECRET.key --public PUBLIC.json\nagentic-mcp review --proposal PROPOSAL.json\nagentic-mcp approve --proposal PROPOSAL.json --private SECRET.key --digest REVIEWED_SHA256 --output RECEIPT.txt\n\nLinux service: data/state directories must be private (0700). Stop active sessions before admin commands. MCP exposes no approval or recovery tools."
@@ -332,8 +347,8 @@ pub fn cli(args: Vec<String>) -> McpResult<()> {
             "--outcome",
         ],
         "keygen" => &["--private", "--public"],
-        "review" => &["--proposal"],
-        "approve" => &["--proposal", "--private", "--digest", "--output"],
+        "review" | "review-workspace" => &["--proposal"],
+        "approve" | "approve-workspace" => &["--proposal", "--private", "--digest", "--output"],
         _ => return Err("unknown command; use --help".into()),
     };
     let mut flags = HashMap::new();
@@ -431,8 +446,11 @@ pub fn cli(args: Vec<String>) -> McpResult<()> {
                 "Created approver keys. Protect the private key with OS permissions; never give it to the MCP client."
             );
         }
-        "review" => {
-            let proposal = load_proposal(Path::new(flags["--proposal"]))?;
+        "review" | "review-workspace" => {
+            let proposal = load_proposal(
+                Path::new(flags["--proposal"]),
+                command == "review-workspace",
+            )?;
             // JSON escaping prevents untrusted file contents from emitting terminal controls.
             println!(
                 "{}\nProposal SHA-256: {}",
@@ -440,8 +458,11 @@ pub fn cli(args: Vec<String>) -> McpResult<()> {
                 crypto::hash(&crypto::canonical(&proposal)?)
             );
         }
-        "approve" => {
-            let proposal = load_proposal(Path::new(flags["--proposal"]))?;
+        "approve" | "approve-workspace" => {
+            let proposal = load_proposal(
+                Path::new(flags["--proposal"]),
+                command == "approve-workspace",
+            )?;
             if crypto::hash(&crypto::canonical(&proposal)?) != flags["--digest"] {
                 return Err("reviewed digest does not match proposal".into());
             }

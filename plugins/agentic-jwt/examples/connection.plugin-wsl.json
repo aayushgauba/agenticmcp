@@ -1,0 +1,9 @@
+{
+  "mode": "wsl",
+  "distribution": "Ubuntu-22.04",
+  "binary": "/usr/local/bin/agentic-mcp",
+  "root": "@plugin",
+  "stateDir": "/var/lib/agentic-mcp/plugin",
+  "approver": "/etc/agentic-mcp/plugin/approver.json",
+  "owner": "plugin"
+}

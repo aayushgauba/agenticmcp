@@ -1,8 +1,11 @@
-use super::{MAX_FILE, McpResult, Proposal, filename};
+#[cfg(target_os = "linux")]
+use super::{MAX_FILE, filename};
+use super::{McpResult, Proposal};
+use std::path::{Path, PathBuf};
+#[cfg(target_os = "linux")]
 use std::{
     fs::File,
     io::{Read, Write},
-    path::{Path, PathBuf},
 };
 
 #[cfg(target_os = "linux")]

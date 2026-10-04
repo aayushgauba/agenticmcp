@@ -11,7 +11,7 @@ export function publicProposal(p: Proposal) {
 }
 
 export function createMcpServer(store: ProposalStore, onProposal: (p: Proposal) => void) {
-  const server = new McpServer({ name: 'agentic-workspace', version: '0.1.1' }, {
+  const server = new McpServer({ name: 'agentic-workspace', version: '0.1.3' }, {
     instructions: 'Paths are relative to the open VS Code workspace. Inspect first, then propose the complete replacement. '
       + 'For new files use before_sha256: null. The user must run Agentic Workspace: Review Pending Change and approve in VS Code. '
       + 'There is no MCP approval tool. After approval, call apply_approved_patch. Do not use other editing tools to bypass review.'

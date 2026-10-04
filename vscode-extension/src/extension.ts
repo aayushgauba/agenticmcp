@@ -3,13 +3,44 @@ import * as fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { Adapter, MAX_BYTES, ProposalStore, Root, safePath, snapshot } from './core';
 import { startServer } from './server';
+import { codexConfig } from './codex';
+import { codexConfigPath, Connection, installCodexConnection } from './codex-install';
 
 export async function activate(context: vscode.ExtensionContext) {
   const output = vscode.window.createOutputChannel('Agentic Workspace');
   context.subscriptions.push(output);
   let status = 'Starting workspace adapter.';
   let proposalStatus = () => '';
+  let codexEndpoint: Awaited<ReturnType<typeof startServer>> | undefined;
   const report = (message: string) => { status = message; output.appendLine(message); };
+  context.subscriptions.push(vscode.commands.registerCommand('agenticWorkspace.connectCodex', async () => {
+    if (!codexEndpoint || !vscode.workspace.isTrusted) {
+      void vscode.window.showErrorMessage(`Codex connection is unavailable. ${status}`);
+      return;
+    }
+    try {
+      const configPath = codexConfigPath();
+      if (vscode.workspace.textDocuments.some(doc => doc.uri.fsPath === configPath && doc.isDirty)) {
+        throw new Error('Save or close unsaved Codex configuration edits first.');
+      }
+      const result = await installCodexConnection(configPath, codexEndpoint);
+      await context.workspaceState.update('codexConnection', { configPath: result.configPath, fingerprint: result.fingerprint });
+      output.appendLine(`Added agentic_workspace to ${result.configPath}.`);
+      if (result.backupPath) output.appendLine(`Previous configuration backed up to ${result.backupPath}.`);
+      void vscode.window.showInformationMessage('Added Agentic Workspace to Codex MCP servers. In Codex settings, select Restart extension to load it. No copying or pasting is needed.');
+    } catch (error) { void vscode.window.showErrorMessage(`Could not connect Codex: ${String(error)}`); }
+  }));
+  context.subscriptions.push(vscode.commands.registerCommand('agenticWorkspace.copyCodexConfig', async () => {
+    if (!codexEndpoint || !vscode.workspace.isTrusted) {
+      void vscode.window.showErrorMessage(`Codex connection is unavailable. ${status}`);
+      return;
+    }
+    try {
+      await vscode.env.clipboard.writeText(codexConfig(codexEndpoint));
+      void vscode.window.showInformationMessage(
+        'Copied private Codex MCP settings. Replace the agentic_workspace table in your user Codex config.toml, then use Restart extension in Codex settings. Do not reload the VS Code window after copying: that changes the connection. Keep this window open.');
+    } catch (error) { void vscode.window.showErrorMessage(`Could not copy Codex settings: ${String(error)}`); }
+  }));
   context.subscriptions.push(vscode.commands.registerCommand('agenticWorkspace.status', () => {
     output.appendLine(status);
     const details = proposalStatus();
@@ -106,7 +137,7 @@ export async function activate(context: vscode.ExtensionContext) {
         store.decide(p.id, choice === 'Approve');
         output.appendLine(`${choice === 'Approve' ? 'Approved' : 'Rejected'} proposal ${p.id}`);
         void vscode.window.showInformationMessage(choice === 'Approve'
-          ? 'Approved. Copilot can now call apply_approved_patch for this proposal.' : 'Proposal rejected.');
+          ? 'Approved. Your MCP client can now call apply_approved_patch for this proposal.' : 'Proposal rejected.');
       }
     } catch (error) { void vscode.window.showErrorMessage(String(error)); }
     finally { reviewing = false; }
@@ -128,6 +159,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(changed);
   context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(() => {
     workspaceChanged = true;
+    codexEndpoint = undefined;
     report('Workspace folders changed. Reload the window to reconnect Agentic Workspace.');
     endpoint.dispose();
     changed.fire();
@@ -138,7 +170,7 @@ export async function activate(context: vscode.ExtensionContext) {
     provideMcpServerDefinitions: () => {
       output.appendLine(workspaceChanged ? 'MCP discovery: reload required.' : 'MCP discovery: returning Agentic Workspace.');
       return workspaceChanged ? [] : [new vscode.McpHttpServerDefinition(
-        'Agentic Workspace', vscode.Uri.parse(endpoint.url), { Authorization: `Bearer ${endpoint.token}` }, '0.1.1')];
+        'Agentic Workspace', vscode.Uri.parse(endpoint.url), { Authorization: `Bearer ${endpoint.token}` }, '0.1.3')];
     }
   })); } catch (error) {
     endpoint.dispose();
@@ -146,5 +178,15 @@ export async function activate(context: vscode.ExtensionContext) {
     void vscode.window.showErrorMessage('Agentic Workspace could not register its MCP server. Run Agentic Workspace: Show Status.');
     return;
   }
-  report(`MCP adapter ready. Workspaces: ${roots.map(root => root.name).join(', ')}. Run Agentic Workspace: Open MCP Servers and select Agentic Workspace.`);
+  codexEndpoint = endpoint;
+  const saved = context.workspaceState.get<Connection>('codexConnection');
+  if (saved) {
+    try {
+      if (vscode.workspace.textDocuments.some(doc => doc.uri.fsPath === saved.configPath && doc.isDirty)) throw new Error('Codex config has unsaved edits.');
+      const refreshed = await installCodexConnection(saved.configPath, endpoint, saved.fingerprint);
+      await context.workspaceState.update('codexConnection', { configPath: refreshed.configPath, fingerprint: refreshed.fingerprint });
+      output.appendLine('Refreshed the existing Codex MCP connection for this workspace. Restart the Codex extension if it connected before this refresh.');
+    } catch (error) { output.appendLine(`Codex automatic refresh skipped: ${String(error)}`); }
+  }
+  report(`MCP adapter ready. Workspaces: ${roots.map(root => root.name).join(', ')}. Use Agentic Workspace: Open MCP Servers for Copilot, or Agentic Workspace: Connect Codex to add the server to Codex.`);
 }

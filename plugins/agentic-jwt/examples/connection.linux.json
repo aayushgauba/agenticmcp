@@ -1,0 +1,8 @@
+{
+  "mode": "linux",
+  "binary": "/usr/local/bin/agentic-mcp",
+  "root": "/srv/agentic-mcp/alice/files",
+  "stateDir": "/var/lib/agentic-mcp/alice",
+  "approver": "/etc/agentic-mcp/alice/approver.json",
+  "owner": "alice"
+}

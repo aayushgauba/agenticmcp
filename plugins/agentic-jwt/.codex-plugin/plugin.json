@@ -1,0 +1,22 @@
+{
+  "name": "agentic-jwt",
+  "version": "0.2.2",
+  "description": "Use the Rust Agentic JWT file service with independent signed approvals and durable execution records.",
+  "author": {
+    "name": "Agentic JWT project"
+  },
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Agentic JWT",
+    "shortDescription": "Files with signed approvals",
+    "longDescription": "Set up native Rust workspace tools with a local human review page. Supports nested files, creation, and signed approvals. Existing Linux, WSL, and SSH service connections remain supported.",
+    "developerName": "Agentic JWT project",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": "Use Agentic JWT to inspect a file and propose a change for independent human review."
+  }
+}

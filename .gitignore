@@ -1,4 +1,6 @@
 /target/
+/artifacts/
+/plugins/agentic-jwt/bin/
 
 # Local configuration and agent workspace metadata
 /.vscode/

@@ -17,6 +17,43 @@ pub(super) struct Store {
 }
 
 impl Store {
+    pub fn open_workspace(directory: &Path, root: &Path, owner: &str) -> McpResult<Self> {
+        #[cfg(target_os = "linux")]
+        {
+            Self::open(directory, root, owner)
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            fs::create_dir_all(directory)?;
+            let canonical = directory.canonicalize()?;
+            if canonical.starts_with(root) || root.starts_with(&canonical) {
+                return Err("state and workspace must be separate non-nested paths".into());
+            }
+            let lock = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(false)
+                .share_mode(0)
+                .open(directory.join("service.lock"))?;
+            let database = directory.join("state.sqlite3");
+            if database.exists()
+                && (!fs::symlink_metadata(&database)?.is_file()
+                    || fs::symlink_metadata(&database)?.file_type().is_symlink())
+            {
+                return Err("workspace database must be a regular file".into());
+            }
+            let db = Connection::open(database)?;
+            Self::initialize(db, lock, root, owner)
+        }
+        #[cfg(not(any(windows, target_os = "linux")))]
+        {
+            let _ = (directory, root, owner);
+            Err("workspace service supports Windows and Linux".into())
+        }
+    }
+
     pub fn open(directory: &Path, root: &Path, owner: &str) -> McpResult<Self> {
         if !directory.exists() {
             #[cfg(unix)]
@@ -84,55 +121,58 @@ impl Store {
                 return Err("database requires a service-owned private regular file".into());
             }
             let db = Connection::open(&path)?;
-            db.busy_timeout(Duration::from_secs(5))?;
-            db.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON; PRAGMA trusted_schema=OFF; PRAGMA max_page_count=16384;")?;
-            let version: i64 = db.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-            if version > 1 {
-                return Err("database schema is newer than this binary".into());
-            }
-            db.execute_batch("BEGIN IMMEDIATE;
-                CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS proposals (
-                    id TEXT PRIMARY KEY, body TEXT NOT NULL, expires INTEGER NOT NULL,
-                    status TEXT NOT NULL CHECK(status IN ('pending','executing','applied','uncertain','aborted')),
-                    receipt TEXT, updated INTEGER NOT NULL);
-                CREATE TABLE IF NOT EXISTS audit (seq INTEGER PRIMARY KEY AUTOINCREMENT, timestamp INTEGER NOT NULL, proposal_id TEXT NOT NULL, event TEXT NOT NULL);
-                CREATE INDEX IF NOT EXISTS proposal_expiry ON proposals(expires);
-                CREATE INDEX IF NOT EXISTS audit_time ON audit(timestamp);
-                PRAGMA user_version=1; COMMIT;")?;
-            let mut store = Self { db, _lock: lock };
-            let identity =
-                serde_json::to_string(&(root.to_str().ok_or("non-UTF8 data root")?, owner))?;
-            let existing: Option<String> = store
-                .db
-                .query_row("SELECT value FROM metadata WHERE key='identity'", [], |r| {
-                    r.get(0)
-                })
-                .optional()?;
-            if let Some(existing) = existing {
-                if existing != identity {
-                    return Err("database belongs to a different owner or data root".into());
-                }
-            } else {
-                store
-                    .db
-                    .execute("INSERT INTO metadata VALUES ('identity',?1)", [&identity])?;
-            }
-            store.check_clock(now()?)?;
-            let tx = store.db.transaction()?;
-            tx.execute("INSERT INTO audit(timestamp,proposal_id,event) SELECT ?1,id,'recovery_required' FROM proposals WHERE status='executing'", [sql_time()?])?;
-            tx.execute(
-                "UPDATE proposals SET status='uncertain' WHERE status='executing'",
-                [],
-            )?;
-            tx.commit()?;
-            Ok(store)
+            Self::initialize(db, lock, root, owner)
         }
         #[cfg(not(target_os = "linux"))]
         {
             let _ = owner;
             Err("durable service requires Linux".into())
         }
+    }
+
+    fn initialize(db: Connection, lock: File, root: &Path, owner: &str) -> McpResult<Self> {
+        db.busy_timeout(Duration::from_secs(5))?;
+        db.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON; PRAGMA trusted_schema=OFF; PRAGMA max_page_count=16384;")?;
+        let version: i64 = db.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        if version > 1 {
+            return Err("database schema is newer than this binary".into());
+        }
+        db.execute_batch("BEGIN IMMEDIATE;
+            CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS proposals (
+                id TEXT PRIMARY KEY, body TEXT NOT NULL, expires INTEGER NOT NULL,
+                status TEXT NOT NULL CHECK(status IN ('pending','executing','applied','uncertain','aborted')),
+                receipt TEXT, updated INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS audit (seq INTEGER PRIMARY KEY AUTOINCREMENT, timestamp INTEGER NOT NULL, proposal_id TEXT NOT NULL, event TEXT NOT NULL);
+            CREATE INDEX IF NOT EXISTS proposal_expiry ON proposals(expires);
+            CREATE INDEX IF NOT EXISTS audit_time ON audit(timestamp);
+            PRAGMA user_version=1; COMMIT;")?;
+        let mut store = Self { db, _lock: lock };
+        let identity = serde_json::to_string(&(root.to_str().ok_or("non-UTF8 data root")?, owner))?;
+        let existing: Option<String> = store
+            .db
+            .query_row("SELECT value FROM metadata WHERE key='identity'", [], |r| {
+                r.get(0)
+            })
+            .optional()?;
+        if let Some(existing) = existing {
+            if existing != identity {
+                return Err("database belongs to a different owner or data root".into());
+            }
+        } else {
+            store
+                .db
+                .execute("INSERT INTO metadata VALUES ('identity',?1)", [&identity])?;
+        }
+        store.check_clock(now()?)?;
+        let tx = store.db.transaction()?;
+        tx.execute("INSERT INTO audit(timestamp,proposal_id,event) SELECT ?1,id,'recovery_required' FROM proposals WHERE status='executing'", [sql_time()?])?;
+        tx.execute(
+            "UPDATE proposals SET status='uncertain' WHERE status='executing'",
+            [],
+        )?;
+        tx.commit()?;
+        Ok(store)
     }
 
     pub fn check_clock(&mut self, time: u64) -> McpResult<()> {
