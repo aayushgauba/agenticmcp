@@ -1,0 +1,310 @@
+{
+  "checksums": [
+    {
+      "components": {
+        "agent_id": "planner",
+        "prompt_template": "You are planner.",
+        "tools": [],
+        "configuration": {
+          "temperature": 0
+        }
+      },
+      "v1": "5df5792e4505e25e2cf1adfe690684829b24c46cf1a5a5ccce5bbf519a0263f0",
+      "v2": "sha3-512:v1:0130be4aa42ca0a209d8518860a4d94d84ad1b92ac706d7ff4e34d118b79d41c14f9fceb1d871aa1c5b638ebb5565491d82529e08fe9f5a2a5cdd6a6ed14c48c",
+      "v3": "sha3-512:id1:f43b1cfecfaa5a424001f441a72eb3c5357caa04fc05168680fa38568040c411d5840010e38d47cf03bf4c0c7e6d18ec894bfed9009eee449aa1891bf683a4c1",
+      "v4": "sha3-512:id2:0130be4aa42ca0a209d8518860a4d94d84ad1b92ac706d7ff4e34d118b79d41c14f9fceb1d871aa1c5b638ebb5565491d82529e08fe9f5a2a5cdd6a6ed14c48c",
+      "v5": "sha3-512:id3:0130be4aa42ca0a209d8518860a4d94d84ad1b92ac706d7ff4e34d118b79d41c14f9fceb1d871aa1c5b638ebb5565491d82529e08fe9f5a2a5cdd6a6ed14c48c",
+      "normalized_sources": {}
+    },
+    {
+      "components": {
+        "agent_id": "unicode",
+        "prompt_template": "  Café 😀\r\n\n next \n",
+        "configuration": {
+          "z": " x \n y ",
+          "a": true
+        },
+        "tools": [
+          {
+            "name": "z",
+            "signature": "(x: int)",
+            "description": " desc ",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "integer"
+                }
+              }
+            },
+            "source_code": "def z(x):\n    \"\"\"docs\"\"\"\n    # ignored\n    return x+1\n"
+          },
+          {
+            "name": "remote",
+            "signature": "()",
+            "description": "MCP",
+            "source": "mcp"
+          },
+          {
+            "name": "child",
+            "signature": "()",
+            "description": "delegate",
+            "is_agent": true
+          }
+        ]
+      },
+      "v1": "c2de03a04c49acb0bdddbc568949f4a19fa0798513acce77db4044e033f33798",
+      "v2": "sha3-512:v1:67a8ae7c19a89166a84b981cada41dcde5da87a301ad9df10e280c61b321ec5c8e32014f5272a992e7451523e8f688802eeabd2decc136e76f02d3dd9709a6c6",
+      "v3": "sha3-512:id1:39954e12844ea9ef0b9da940570f928890fe36b891ec48cb52f2d7c8e9af0d3e212b145d6a17729d95074f796eab85232ccd74409721be31238c76e3e0f2fac6",
+      "v4": "sha3-512:id2:aea7f51a817d9e8b0af7eebb50a7b3002a23ecb2afdef44ee50618149dc836628c7e2c2c2d0ff9558beaac3f427ff479b00f8d298a1adf8484e660532854d294",
+      "v5": "sha3-512:id3:02ed397c903174d7c64e7c33d37720324301ecfd21b91391e108771c86a7b47edcd3931c173664055ab4cc315c92be125c802f949effc6b05d16ff27ff7b4843",
+      "normalized_sources": {
+        "def z(x):\n    \"\"\"docs\"\"\"\n    # ignored\n    return x+1\n": "def z(x):\n    return x + 1"
+      }
+    },
+    {
+      "components": {
+        "agent_id": "floats",
+        "prompt_template": "p",
+        "tools": [],
+        "configuration": {
+          "numbers": [
+            0.0,
+            -0.0,
+            1e-05,
+            0.0001,
+            1000000000000000.0,
+            1e+16,
+            1e+20,
+            1e-07,
+            1.2345678901234567,
+            0.7
+          ]
+        }
+      },
+      "v1": "30d8c81dfafae39592d0e1050138972c6e233cc88fa112ca908b73d226fb4fc3",
+      "v2": "sha3-512:v1:1b4aa11660fe5c83f6c9e3fcf5ba677fa582f66d19259483bffeceb2c012075ea0fbce897099faabccad6c291698d100501bbd221ee2f219f98b5303bb3e1607",
+      "v3": "sha3-512:id1:f4243e5249fbb23ad6127e2820269a23bbe2548423593d35d97952a735703657dbce8b5491fe54e1604937653e3c9080cadd0ef76f4828a85192b37654917272",
+      "v4": "sha3-512:id2:1b4aa11660fe5c83f6c9e3fcf5ba677fa582f66d19259483bffeceb2c012075ea0fbce897099faabccad6c291698d100501bbd221ee2f219f98b5303bb3e1607",
+      "v5": "sha3-512:id3:1b4aa11660fe5c83f6c9e3fcf5ba677fa582f66d19259483bffeceb2c012075ea0fbce897099faabccad6c291698d100501bbd221ee2f219f98b5303bb3e1607",
+      "normalized_sources": {}
+    },
+    {
+      "components": {
+        "agent_id": "source",
+        "prompt_template": "p",
+        "configuration": {},
+        "tools": [
+          {
+            "name": "f",
+            "signature": "()",
+            "description": "",
+            "source_code": "  def f():\n      \"\"\"only docs\"\"\"\n"
+          },
+          {
+            "name": "bad",
+            "signature": "()",
+            "description": "",
+            "source_code": " def broken(:\n"
+          }
+        ]
+      },
+      "v1": "4c2d05948ff1124a5d1fb44a6df92ec80bfb27af08932fb2b268ab199c152ae9",
+      "v2": "sha3-512:v1:8562cfd7b2302c49f452151b3539fd58649856a144f498f59bafcb8e6a2c15142717bb7d78706db7733dfcbb34049b383afeda31759c9e00003912289a896015",
+      "v3": "sha3-512:id1:4df0021f43db7f4b5f2f507e3dbbd30461ab0345486a60ba950fbaf39a200c67babad47b2df26577e1aceb3625c473bb6f639d79c62a1d02da29f47e87fe47bd",
+      "v4": "sha3-512:id2:d2812b81b9cdaa426e6379565af0e850ad669099220f34ce49da6fef5824b92303d6b522ea4b4cf54500023824d85e695b2c8d5fbb4bb891568b750ef5af58d2",
+      "v5": "sha3-512:id3:9b804f99600d9feada7cdb4d375e504a6986ff6d7a58e4bad08fd11fdab000b372d58dbbb4f330d94843c910debc62bfacc99ac279c9dd0de4d1105bc651185b",
+      "normalized_sources": {
+        "  def f():\n      \"\"\"only docs\"\"\"\n": "def f():\n    pass",
+        " def broken(:\n": "def broken(:\n"
+      }
+    },
+    {
+      "components": {
+        "agent_id": "numeric",
+        "prompt_template": "p",
+        "tools": [],
+        "configuration": {
+          "values": [
+            -5.12964474581326e+213,
+            1.0457889977004386e-50,
+            6.424444316865625e-65,
+            6.651979767133091e-40,
+            8.527148495207294e+105,
+            9.65794767121655e+172,
+            4.6294383251575464e+260,
+            4.701405210678833e+48,
+            1.7212874681714884e+67,
+            -2.2646044199588978e-17,
+            -1.9221213911130343e-294,
+            7.051466422363057e-272,
+            7.786569384041674e-269,
+            -4.447179025453374e-121,
+            -305451.9948983105,
+            -2.6558121369712893e-104,
+            5.285588616175648e-271,
+            -1.2367540662945077e-129,
+            -5.975587646941394e-240,
+            9.723328516817755e-191,
+            -6.502800501994181e+174,
+            8.63905489686104e+143,
+            8.643210592117393e-96,
+            9.556614452654447e+77,
+            -7.7595084183172785e+261,
+            5.55530953088579e+65,
+            9.797206141102171e+206,
+            -7.64771602766541e+149,
+            3.0319201961654763e+143,
+            6.598067662066843e-260,
+            9.938150416968811e+223,
+            2.879607207832922e+251,
+            -80073272401490.2,
+            8.506558467663924e+170,
+            6.783037585847682e-273,
+            -3.448696371819169e+240,
+            -8.255498576263423e+298,
+            7.261555132283288e+117,
+            1.2146444461972061e-17,
+            -5.501767112927885e+179,
+            1.728469950589888e-83,
+            6.2170211938729e+252,
+            -8.928771715961188e+175,
+            -3.8458294368428557e+152,
+            9.640653610663708e+263,
+            -2.9524159600399758,
+            -4.944762962844185e-151,
+            9.99427235078847e+130,
+            7.700569597609805e-119,
+            -7.751188233777504e+174,
+            7.557404333157985e-290,
+            3.3840873331305607e-141,
+            3.549773457840706e-222,
+            1.1476672451063385e+211,
+            5.072800213020046e-11,
+            1.5767596220558145e+147,
+            4.566498614318828e+188,
+            -2.3713378583182324e-16,
+            -7.205151053918671e+109,
+            -1.942274137695983e+94,
+            -3.6541586637506103e+110,
+            1.4216254629858514e+36,
+            1.0525346484292396e+117,
+            2.2563617566584873e+30,
+            -4.3307280444947474e-175,
+            -9.890789398429892e-167,
+            -2.163936813554115e-81,
+            6.1577551681861815e-34,
+            -8.933747203510014e+273,
+            -3.4311566019040666e-251,
+            5.8561180143373413e-269,
+            8.610848683742765e-298,
+            -4.210691160918278e+161,
+            -8.553689330881383e+194,
+            4.570247610568506e+264,
+            -7.17117274576075e-21,
+            -8.409560212761268e+196,
+            8.537756279683923e-300,
+            -5.172610779540867e+144,
+            -6.282012353768056e-192,
+            7.648550952646141e-291,
+            2.275903750972612e-138,
+            9.815111139344959e+294,
+            -4.509448057204279e-165,
+            -6.907109644723662e+234,
+            7.699207081447467e+125,
+            -5.886621402399423e-246,
+            6.924232610849079e+168,
+            -1.88997342062742e+263,
+            9.675910926755068e-181,
+            -4.0897562344530925e-222,
+            1.3049306264869863e-152,
+            3.1206770338187016e+224,
+            -5.996263179426995e+150,
+            -2.8752897345238537e+196,
+            -5.38761003541744e-233,
+            -3.6406770833591783e+255,
+            -5.8424707996522485e+91,
+            -6.13702199597021e-72,
+            -7.769594913637148e+271
+          ]
+        }
+      },
+      "v1": "fe8c7260e4542c5962f056134777248fd2ae42eddcb0e6a3ead05f37de90804f",
+      "v2": "sha3-512:v1:92c20c3aa48b8b14a6558b6c8bc57a71bebe26d6d7160e02e365d5b0447ff75b03fa203504647a367ff5901aac2749974763db27d856c7390ca9363ae7af5b3b",
+      "v3": "sha3-512:id1:7426095472ddd3d14923bae35476e5d2395b24622d5ccaabf37c7ebf0dc1db42aae1b81d58054d85eb3f961650cafb436aafea5fc27a3ae3ea677cef1d88c2a0",
+      "v4": "sha3-512:id2:92c20c3aa48b8b14a6558b6c8bc57a71bebe26d6d7160e02e365d5b0447ff75b03fa203504647a367ff5901aac2749974763db27d856c7390ca9363ae7af5b3b",
+      "v5": "sha3-512:id3:92c20c3aa48b8b14a6558b6c8bc57a71bebe26d6d7160e02e365d5b0447ff75b03fa203504647a367ff5901aac2749974763db27d856c7390ca9363ae7af5b3b",
+      "normalized_sources": {}
+    }
+  ],
+  "scopes": [
+    {
+      "rs": "example.com",
+      "method": "GET",
+      "path": "//files/:id/",
+      "scope": "a51:rs:example.com:get:/files/{id}"
+    },
+    {
+      "rs": "example.com",
+      "method": "POST",
+      "path": "/x/<int:item>",
+      "scope": "a51:rs:example.com:post:/x/{item}"
+    },
+    {
+      "rs": "rs",
+      "method": "PUT",
+      "path": "/café/a:b/%/😀",
+      "scope": "a51:rs:rs:put:/caf%C3%A9/a%3Ab/%25/%F0%9F%98%80"
+    }
+  ],
+  "actions": [
+    {
+      "operation": "transfer",
+      "params": {
+        "amount": "500",
+        "account": "A"
+      },
+      "hash": "6dc29e0110034bb307e6da0fd35890d61693927a8e0e4021c9b384486fb1b5ab2ef07f9b6c7b7dc167d5d902670d7d3c875aff3be7ba9b2803368e989699c53a"
+    },
+    {
+      "operation": "sell",
+      "params": {
+        "price": 0
+      },
+      "hash": "c2c737ae96946b2597c923cbff938ac5cca04eeb2ea1608cb193f315e7065753d733237c33155a8946681ded5fc9e7637467ef3a2de01a2345ec8334bb5b4ca5"
+    },
+    {
+      "operation": "unicode",
+      "params": {
+        "é": "😀",
+        "nested": {
+          "x": "10"
+        }
+      },
+      "hash": "6f7794cf4ee81f2e1d08d6adbe0c725536a78599c29a950c9778ca90bdd86fe4c34d8498daac380b9166b27abb5afae0f8cf6b6450eff9e3a2afd74ad7054ef6"
+    },
+    {
+      "operation": "float",
+      "params": {
+        "small": "1e-5",
+        "large": "1e20",
+        "negative": "-0.0"
+      },
+      "hash": "034d0c03a8d15a067c21f06854fff11974e23c7c7d600399c0a287796c432513be073cb913765bb3eafa78be24bda5acfe64679c3c4510d571c5542c433c249b"
+    }
+  ],
+  "jwk": {
+    "crv": "P-256",
+    "kty": "EC",
+    "x": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "y": "Hx4dHBsaGRgXFhUUExIREA8ODQwLCgkIBwYFBAMCAQA"
+  },
+  "jkt": "R3Noun0YfDy3TGkEVUKpkdNRr5svtz-tbmHaAioh_QM",
+  "ath": "Jyz93-uLoI75IUINEPslQY0EWf_k5ayBVUHMH6meQGQ",
+  "sequence": [
+    "a",
+    "{'agent_id': 'b', 'tool_name': 'read'}"
+  ],
+  "current_repr": "{'agent_id': 'c', 'tool_name': 'write'}",
+  "sequence_hash": "5d1a69fc896c8260"
+}

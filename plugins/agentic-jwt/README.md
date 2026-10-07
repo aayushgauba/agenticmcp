@@ -63,6 +63,6 @@ codex plugin marketplace add .
 codex plugin add agentic-jwt@agentic-local
 ```
 
-Packaging copies the built executable for the current host into the plugin and writes `artifacts/agentic-jwt-0.2.2.zip`. Rebuild on Linux for a Linux executable. The archive includes hidden compatibility manifests and no user keys, receipts, runtime state, or dependency directories. This is a private local plugin, not a public directory submission. Restart Codex or open a new chat after updating.
+Packaging copies the built executable for the current host into the plugin and writes `artifacts/agentic-jwt-0.2.3.zip`. Rebuild on Linux for a Linux executable. The archive includes hidden compatibility manifests and no user keys, receipts, runtime state, or dependency directories. This is a private local plugin, not a public directory submission. Restart Codex or open a new chat after updating.
 
 The source marketplace and install flow follow [OpenAI's plugin packaging guide](https://developers.openai.com/plugins/build/plugins).

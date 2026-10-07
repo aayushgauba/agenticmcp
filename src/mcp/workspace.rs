@@ -349,3 +349,62 @@ pub(super) fn cli(args: &[String], check_only: bool) -> McpResult<()> {
         output.flush()?;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn signed_workspace_apply_uses_local_auth51_and_rejects_tampering_and_replay() {
+        let base = std::env::temp_dir().join(format!("auth51-workspace-{}", crypto::id()));
+        let root = base.join("root");
+        let state = base.join("state");
+        fs::create_dir_all(&root).unwrap();
+        let root = root.canonicalize().unwrap();
+        let approver = crate::KeyPair::generate();
+        let mut workspace = Workspace {
+            store: store::Store::open_workspace(&state, &root, "owner").unwrap(),
+            root: root.clone(),
+            owner: "owner".into(),
+            approver: approver.public_key(),
+        };
+        let proposed=workspace.call("propose_patch",&json!({"path":"nested/file.txt","before_sha256":null,"replacement":"approved contents"})).unwrap();
+        let proposal: Proposal = serde_json::from_value(proposed["proposal"].clone()).unwrap();
+        let mut tampered = proposal.clone();
+        tampered.replacement = "different".into();
+        let bad = crypto::encode(
+            &tampered,
+            &approver,
+            super::super::APPROVAL_TYPE,
+            "approver",
+        )
+        .unwrap();
+        assert!(
+            workspace
+                .call(
+                    "apply_approved_patch",
+                    &json!({"proposal_id":proposal.id,"approval":bad})
+                )
+                .is_err()
+        );
+        assert!(!root.join("nested/file.txt").exists());
+        let receipt = crypto::encode(
+            &proposal,
+            &approver,
+            super::super::APPROVAL_TYPE,
+            "approver",
+        )
+        .unwrap();
+        let args = json!({"proposal_id":proposal.id,"approval":receipt});
+        assert_eq!(
+            workspace.call("apply_approved_patch", &args).unwrap()["status"],
+            "applied"
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("nested/file.txt")).unwrap(),
+            "approved contents"
+        );
+        assert!(workspace.call("apply_approved_patch", &args).is_err());
+        drop(workspace);
+        fs::remove_dir_all(&base).unwrap();
+    }
+}

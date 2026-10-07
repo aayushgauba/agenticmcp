@@ -1,0 +1,147 @@
+{
+  "default_tier": "READ",
+  "read_pattern": "^(list|get|retrieve|describe|read|fetch|search|view|count|query|lookup)",
+  "min_support": 1,
+  "unknown_floor": "SENSITIVE",
+  "value_caps": {},
+  "tiers": [
+    {
+      "name": "READ",
+      "rank": 0,
+      "guards": {
+        "unobserved": "free",
+        "observed_untrusted": "free",
+        "observed_trusted": "free"
+      },
+      "floor": "free",
+      "risk_values": [],
+      "tags": [
+        "read",
+        "readonly"
+      ],
+      "name_patterns": []
+    },
+    {
+      "name": "WRITE",
+      "rank": 10,
+      "guards": {
+        "unobserved": "free",
+        "observed_untrusted": "free",
+        "observed_trusted": "free"
+      },
+      "floor": "free",
+      "risk_values": [],
+      "tags": [
+        "write",
+        "mutation"
+      ],
+      "name_patterns": [
+        "(create|update|modify|edit|change|patch|replace|add|set|write|post|upsert)"
+      ]
+    },
+    {
+      "name": "SENSITIVE",
+      "rank": 20,
+      "guards": {
+        "unobserved": "approval",
+        "observed_untrusted": "approval",
+        "observed_trusted": "ordered"
+      },
+      "floor": "free",
+      "risk_values": [
+        "sensitive",
+        "high"
+      ],
+      "tags": [
+        "sensitive",
+        "pii",
+        "account",
+        "identity",
+        "high"
+      ],
+      "name_patterns": [
+        "(create|update|modify|edit|change|patch|replace|add|set)[a-z0-9_]*?(customer|account|user|member|owner|role|permission|policy|credential|secret|apikey|api_key|token|password|email|phone|address|profile)",
+        "(customer|account|user|member|owner|role|permission|policy|credential|secret|token|email|phone|address|profile)[a-z0-9_]*?(create|update|modify|edit|change|patch|replace|add|set)"
+      ]
+    },
+    {
+      "name": "FINANCIAL",
+      "rank": 30,
+      "guards": {
+        "unobserved": "approval",
+        "observed_untrusted": "approval",
+        "observed_trusted": "ordered"
+      },
+      "floor": "ordered",
+      "risk_values": [
+        "financial",
+        "payment"
+      ],
+      "tags": [
+        "financial",
+        "payment",
+        "payout",
+        "transfer",
+        "refund",
+        "charge",
+        "money",
+        "billing",
+        "funds"
+      ],
+      "name_patterns": [
+        "(payout|transfer|refund|charge|payment|withdraw|deposit|settle|capture|disburse|remit|invoice|chargeback|topup|top_up)"
+      ]
+    },
+    {
+      "name": "SECURITY",
+      "rank": 40,
+      "guards": {
+        "unobserved": "approval",
+        "observed_untrusted": "approval",
+        "observed_trusted": "approval"
+      },
+      "floor": "approval",
+      "risk_values": [
+        "security"
+      ],
+      "tags": [
+        "security",
+        "iam",
+        "privilege",
+        "admin",
+        "access"
+      ],
+      "name_patterns": [
+        "(attach|detach|put|set|create|update|delete)?[a-z0-9_]*polic",
+        "grant[a-z0-9_]*(role|permission|access|scope)",
+        "(revoke|escalat|assumerole|impersonat)",
+        "(disable|enable)[a-z0-9_]*mfa",
+        "(rotate|disable)[a-z0-9_]*(key|credential|secret)",
+        "(add|remove)[a-z0-9_]*(admin|owner|member)"
+      ]
+    },
+    {
+      "name": "DESTRUCTIVE",
+      "rank": 50,
+      "guards": {
+        "unobserved": "approval",
+        "observed_untrusted": "approval",
+        "observed_trusted": "approval"
+      },
+      "floor": "approval",
+      "risk_values": [
+        "destructive",
+        "critical"
+      ],
+      "tags": [
+        "destructive",
+        "delete"
+      ],
+      "name_patterns": [
+        "(drop|truncate|purge|destroy|wipe|erase|deprovision)",
+        "delete[a-z0-9_]*(database|table|bucket|volume|cluster|instance|account|customer|user|record|data)",
+        "terminate[a-z0-9_]*(instance|cluster|node)"
+      ]
+    }
+  ]
+}

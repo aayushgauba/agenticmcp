@@ -1,0 +1,99 @@
+{
+  "http": {
+    "requests.get": "get",
+    "requests.post": "post",
+    "requests.put": "put",
+    "requests.patch": "patch",
+    "requests.delete": "delete",
+    "requests.head": "head",
+    "requests.request": null,
+    "httpx.get": "get",
+    "httpx.post": "post",
+    "httpx.put": "put",
+    "httpx.patch": "patch",
+    "httpx.delete": "delete",
+    "httpx.request": null,
+    "urllib.request.urlopen": "get",
+    "aiohttp.request": null
+  },
+  "http_tiers": {
+    "get": "READ",
+    "head": "READ",
+    "options": "READ",
+    "post": "WRITE",
+    "put": "WRITE",
+    "patch": "WRITE",
+    "delete": "SENSITIVE"
+  },
+  "sdk": {
+    "stripe.Payout.create": [
+      "resource_op",
+      "CreatePayout"
+    ],
+    "stripe.Transfer.create": [
+      "resource_op",
+      "CreateTransfer"
+    ],
+    "stripe.Refund.create": [
+      "resource_op",
+      "CreateRefund"
+    ],
+    "stripe.Charge.create": [
+      "resource_op",
+      "CreateCharge"
+    ],
+    "stripe.Account.create": [
+      "resource_op",
+      "CreateExternalAccount"
+    ],
+    "stripe.Customer.modify": [
+      "resource_op",
+      "UpdateCustomer"
+    ]
+  },
+  "sdk_roots": [
+    "azure",
+    "boto3",
+    "botocore",
+    "github",
+    "gitlab",
+    "google",
+    "sendgrid",
+    "slack_sdk",
+    "stripe",
+    "twilio"
+  ],
+  "stdlib": {
+    "os.system": "process.spawn",
+    "os.popen": "process.spawn",
+    "os.remove": "fs.delete",
+    "os.unlink": "fs.delete",
+    "os.rmdir": "fs.delete",
+    "os.removedirs": "fs.delete",
+    "shutil.rmtree": "fs.delete",
+    "shutil.move": "fs.write",
+    "shutil.copy": "fs.write",
+    "shutil.copyfile": "fs.write",
+    "subprocess.run": "process.spawn",
+    "subprocess.Popen": "process.spawn",
+    "subprocess.call": "process.spawn",
+    "subprocess.check_call": "process.spawn",
+    "subprocess.check_output": "process.spawn"
+  },
+  "dynamic": [
+    "compile",
+    "eval",
+    "exec"
+  ],
+  "local_tiers": {
+    "fs.read": "READ",
+    "fs.write": "WRITE",
+    "fs.delete": "DESTRUCTIVE",
+    "db.read": "READ",
+    "db.write": "WRITE",
+    "db.delete": "DESTRUCTIVE",
+    "db.drop": "DESTRUCTIVE",
+    "process.spawn": "SECURITY",
+    "process.env_write": "SECURITY"
+  }
+}

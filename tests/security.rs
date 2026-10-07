@@ -413,7 +413,7 @@ fn grant_short_form_is_supported_and_unknown_types_rejected() {
 }
 
 #[test]
-fn checksum_is_deterministic_but_preserves_prompt_changes() {
+fn checksum_is_deterministic_and_normalizes_cosmetic_prompt_changes() {
     let f = Fixture::new();
     let mut a = f.specs[0].clone();
     a.tools = vec![
@@ -432,6 +432,8 @@ fn checksum_is_deterministic_but_preserves_prompt_changes() {
     b.tools.reverse();
     assert_eq!(a.checksum().unwrap(), b.checksum().unwrap());
     b.prompt_template.push('\n');
+    assert_eq!(a.checksum().unwrap(), b.checksum().unwrap());
+    b.prompt_template.push_str("Different instructions");
     assert_ne!(a.checksum().unwrap(), b.checksum().unwrap());
     a.tools.push(a.tools[0].clone());
     assert!(a.checksum().is_err());
@@ -456,7 +458,7 @@ fn independently_computed_agent_checksum_vector() {
     let f = Fixture::new();
     assert_eq!(
         f.specs[0].checksum().unwrap(),
-        "sha256:0feaa80d1368788755fcdddf82c4a1429c8f734387114736b3b5d0d106e9c5b0"
+        "sha3-512:id1:f43b1cfecfaa5a424001f441a72eb3c5357caa04fc05168680fa38568040c411d5840010e38d47cf03bf4c0c7e6d18ec894bfed9009eee449aa1891bf683a4c1"
     );
 }
 

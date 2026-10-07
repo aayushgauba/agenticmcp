@@ -6,7 +6,7 @@ This is a separate **VS Code workspace adapter**, not a wrapper around the repos
 
 ## Install and use
 
-1. Install the generated `agentic-workspace-0.1.3.vsix` using **Extensions: Install from VSIX...** in the Command Palette, then run **Developer: Reload Window**.
+1. Install the generated `agentic-workspace-0.1.5.vsix` using **Extensions: Install from VSIX...** in the Command Palette, then run **Developer: Reload Window**.
 2. Open the repository you want to edit in a trusted VS Code window (VS Code 1.103 or later).
 3. Run **Agentic Workspace: Open MCP Servers** (or **MCP: List Servers**), select **Agentic Workspace**, and start/allow the server when prompted. Enable its tools in Copilot's tools picker. Disable the old manually configured `agentic-files` server to avoid confusing the two adapters.
 4. Ask Copilot: “Use Agentic Workspace to inspect py/aiwaf/processor.py and propose the required change. Wait for my approval before applying it.”

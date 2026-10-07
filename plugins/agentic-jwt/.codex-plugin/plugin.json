@@ -1,6 +1,6 @@
 {
   "name": "agentic-jwt",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Use the Rust Agentic JWT file service with independent signed approvals and durable execution records.",
   "author": {
     "name": "Agentic JWT project"

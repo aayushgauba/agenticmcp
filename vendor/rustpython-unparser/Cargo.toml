@@ -1,0 +1,14 @@
+[package]
+name = "rustpython-unparser"
+version = "0.2.4"
+edition = "2021"
+rust-version = "1.72.1"
+license = "MIT"
+publish = false
+
+[features]
+transformer = []
+
+[dependencies]
+rustpython-ast = {version = "=0.4.0",features=["rustpython-literal"]}
+rustpython-literal = "=0.4.0"

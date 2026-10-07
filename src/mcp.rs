@@ -114,67 +114,101 @@ impl FileServer {
         })
     }
 
-    fn authorize(&self, proposal: &Proposal) -> McpResult<(Authority, Permit)> {
+    fn authorize(
+        &self,
+        proposal: &Proposal,
+    ) -> McpResult<(auth51::LocalAuthority, auth51::LocalPermit)> {
         Self::authorize_proposal(proposal)
     }
 
-    fn authorize_proposal(proposal: &Proposal) -> McpResult<(Authority, Permit)> {
+    fn authorize_proposal(
+        proposal: &Proposal,
+    ) -> McpResult<(auth51::LocalAuthority, auth51::LocalPermit)> {
         // Tokens never leave this trusted adapter. A fresh ephemeral authority is
         // sufficient per execution; durable replay/idempotency is enforced in SQLite.
-        let mut authority = Authority::new(ISSUER)?;
-        let client = KeyPair::generate();
-        let agent = KeyPair::generate();
-        let spec = AgentSpec {
+        use auth51::*;
+        use std::sync::{Arc, OnceLock};
+        static ISSUER_KEY: OnceLock<Arc<IssuerKey>> = OnceLock::new();
+        let key = if let Some(key) = ISSUER_KEY.get() {
+            key.clone()
+        } else {
+            let key = Arc::new(IssuerKey::generate()?);
+            let _ = ISSUER_KEY.set(key.clone());
+            ISSUER_KEY.get().cloned().unwrap_or(key)
+        };
+        let mut authority = LocalAuthority::new(ISSUER, "mcp-adapter", key)?;
+        let holder = ProofKey::generate();
+        let spec = Components {
             agent_id: "mcp-file-executor".into(),
             prompt_template: "Execute only the exact independently approved file replacement."
                 .into(),
-            tools: vec![Tool {
-                name: "apply_approved_patch".into(),
-                description: "Replace an approved file".into(),
-                parameters: json!({"type":"object"}),
-            }],
+            tools: vec![
+                json!({"name":"apply_approved_patch", "description":"Replace an approved file",
+                "parameters":{"type":"object","properties":{"proposal_sha256":{"type":"string"}}}}),
+            ],
             configuration: json!({"adapter":"stdio-durable-v1", "root":proposal.root, "owner":proposal.owner}),
         };
-        authority.register_client("mcp-adapter", client.public_key())?;
+        let uri = format!("{AUDIENCE}/proposals/{}", proposal.id);
+        let scope = derive_scope(
+            "files.agentic-mcp.invalid",
+            "PUT",
+            &format!("/proposals/{}", proposal.id),
+        )?;
         authority.register_agent(
-            "mcp-adapter",
             &spec,
-            agent.public_key(),
-            AgentPolicy {
-                scopes: ["file:write".into()].into(),
-                audiences: [AUDIENCE.into()].into(),
+            Grant {
+                allowed_scopes: vec![scope.clone()],
+                step_up_scopes: vec![],
+                mode: Mode::Enforce,
+                expires_at: Some(proposal.expires_at),
             },
         )?;
-        let action = Action::new(
-            "PUT",
-            &format!("{AUDIENCE}/proposals/{}", proposal.id),
-            &crypto::canonical(proposal)?,
-            "file:write",
-        )?;
-        authority.register_workflow(Workflow {
-            id: proposal.id.clone(),
-            steps: vec![Step {
-                id: "apply".into(),
-                agent_id: spec.agent_id.clone(),
-                audience: AUDIENCE.into(),
-                action: action.clone(),
-                requires_approval: true,
-            }],
-        })?;
-        let run = authority.start_run(&proposal.id, &proposal.owner)?;
-        authority.approve(&run, "apply", &proposal.owner)?;
+        authority.set_tier(&spec.agent_id, "apply_approved_patch", "DESTRUCTIVE");
+        let proposal_hash = crypto::hash(&crypto::canonical(proposal)?);
+        // This host-only function is called after the full independent approval
+        // receipt has been verified against the persisted proposal.
+        authority.register_workflow(Dag {workflow_id:proposal.id.clone(),workflow_type:"dag".into(),mode:Mode::Enforce,control:Control::Strict,
+            steps:[("approval".into(),WorkflowStep {agent:"human-approver".into(),action:"ApproveHighConsequence".into(),approval_gate:true,..Default::default()}),
+                ("z_apply".into(),WorkflowStep {agent:spec.agent_id.clone(),action:"apply_approved_patch".into(),scopes:vec![scope.clone()],dependencies:vec!["approval".into()],requires_approval:true,value_bound:true,
+                    value_bounds:vec![json!({"target":"self.in.proposal_sha256","op":"==","operand":{"lit":proposal_hash}})],..Default::default()})].into()})?;
+        let execution = authority.open_execution(Some(&proposal.id), Mode::Enforce);
         let time = now()?;
-        let grant = SignedGrant::sign(
-            "mcp-adapter",
-            ISSUER,
-            authority.request_for(&run, &spec)?,
-            &client,
-            &agent,
-            time,
-        )?;
-        let token = authority.issue(&grant, time)?;
-        let proof = prove_request(&token.access_token, &action, &spec.agent_id, &agent, time)?;
-        let permit = authority.authorize(&token.access_token, &proof, AUDIENCE, &action, time)?;
+        let values = json!({"proposal_sha256":proposal_hash});
+        let request = MintRequest {
+            grant_type: "agent_checksum".into(),
+            agent_id: spec.agent_id.clone(),
+            computed_checksum: spec.checksum_v4()?,
+            requested_scopes: vec![scope.clone()],
+            audience: AUDIENCE.into(),
+            execution_id: Some(execution.execution_id),
+            workflow_id: None,
+            workflow_enabled: true,
+            workflow_step: Some(
+                json!({"agent_id":spec.agent_id,"tool_name":"apply_approved_patch"}),
+            ),
+            action_args: Some(values.clone()),
+            delegation_context: Some(Delegation {
+                chain: vec![json!(spec.agent_id)],
+                completed_steps: vec![
+                    json!({"agent_id":"human-approver","tool_name":"ApproveHighConsequence"}),
+                ],
+            }),
+            cnf_jkt: Some(holder.thumbprint()?),
+        };
+        let token = authority.mint(&request, &["generate:intent-token".into()], time)?;
+        let proof = holder.proof("PUT", &uri, Some(&token.access_token), None, time)?;
+        let scopes = vec![scope];
+        let resource = ResourceRequest {
+            method: "PUT",
+            uri: &uri,
+            audience: Some(AUDIENCE),
+            scopes: &scopes,
+            proof: Some(&proof),
+            legacy_pop: None,
+            legacy_timestamp: None,
+            values: &values,
+        };
+        let permit = authority.authorize(&token.access_token, &resource, time)?;
         Ok((authority, permit))
     }
 

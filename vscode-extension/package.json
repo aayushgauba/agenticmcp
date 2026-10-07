@@ -2,7 +2,7 @@
   "name": "agentic-workspace",
   "displayName": "Agentic Workspace MCP",
   "description": "Review and approve MCP file changes in your VS Code workspace.",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "publisher": "agentic-local",
   "license": "UNLICENSED",
   "engines": {
@@ -34,7 +34,10 @@
       }
     ],
     "commands": [
-      { "command": "agenticWorkspace.connectCodex", "title": "Agentic Workspace: Connect Codex" },
+      {
+        "command": "agenticWorkspace.connectCodex",
+        "title": "Agentic Workspace: Connect Codex"
+      },
       {
         "command": "agenticWorkspace.copyCodexConfig",
         "title": "Agentic Workspace: Copy Codex MCP Configuration"

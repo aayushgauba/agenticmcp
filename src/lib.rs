@@ -4,6 +4,7 @@
 //! Administrative methods on [`Authority`] are trusted, in-process operations, not
 //! unauthenticated network endpoints. No LLM or network service is required by the demo.
 
+pub mod auth51;
 mod authority;
 mod crypto;
 mod identity;
