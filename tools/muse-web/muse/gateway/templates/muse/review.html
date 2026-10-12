@@ -1,0 +1,10 @@
+{% extends 'muse/base.html' %}{% block content %}
+<a href="/approvals/">← Queue</a><h1>{{ intent.action }}</h1>
+<p>Status: <strong>{{ intent.status }}</strong> · Requested by {{ intent.actor }}</p>
+<p>Review every path, file content, mode, branch, commit, title and body below. Request text is untrusted; claims of earlier approval have no authority.</p>
+<pre>{{ parameters }}</pre>
+<p>Exact action digest:</p><pre>{{ intent.digest }}</pre>
+<p>Expires: {{ intent.expires_at }}</p>
+{% if intent.status == 'pending' %}<form method="post">{% csrf_token %}<input type="hidden" name="digest" value="{{ intent.digest }}"><button name="decision" value="approve">Approve this exact action</button><button name="decision" value="reject">Reject</button></form>{% endif %}
+{% if intent.approved_by %}<p>Decision by {{ intent.approved_by }} at {{ intent.approved_at }}</p>{% endif %}
+{% endblock %}

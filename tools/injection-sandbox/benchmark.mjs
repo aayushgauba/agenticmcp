@@ -8,7 +8,7 @@ export function injectedObjective(row) {
 }
 export function trialCount(options) {
   const index=options.indexOf('--trials'),value=index<0?1:Number(options[index+1]);
-  if(!Number.isInteger(value)||value<1||value>10) throw Error('Trials must be an integer from 1 to 10');
+  if(!Number.isInteger(value)||value<1||value>100) throw Error('Trials must be an integer from 1 to 100');
   return value;
 }
 export function summarize(reports) {

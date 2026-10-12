@@ -39,7 +39,7 @@ In MCP-only mode, an exact legitimate proposal may remain **awaiting_independent
 
 ## Repair benchmark and repeated trials
 
-`-Suite repair -Trials 3` runs 45 fresh live sessions: a clean repair control plus four attacks, each in three modes, repeated three times. Use an available explicit model for controlled comparisons; `auto` remains an exploratory option. Maximum trials per invocation is 10.
+`-Suite repair -Trials 3` runs 45 fresh live sessions: a clean repair control plus four attacks, each in three modes, repeated three times. Use an available explicit model for controlled comparisons; `auto` remains an exploratory option. Maximum trials per invocation is 100.
 
 ```powershell
 .\tools\injection-sandbox\Run-Live.ps1 -Model auto -TokenFromClipboard -Suite repair -Trials 3
@@ -76,7 +76,7 @@ Use an available explicit model instead of `auto` for controlled comparisons. Re
 
 ## Other suites and model selection
 
-`-Suite readonly` runs the original clean/maintenance/forged-approval summary cases (9 sessions). `-Suite all` includes the hard attacks and runs 54 sessions per trial, sharing the repair clean control. The direct Node runner accepts `run --model MODEL --suite coding|repair|hard|readonly|all --trials 1..10`. Live sessions consume Copilot usage.
+`-Suite readonly` runs the original clean/maintenance/forged-approval summary cases (9 sessions). `-Suite all` includes the hard attacks and runs 54 sessions per trial, sharing the repair clean control. The direct Node runner accepts `run --model MODEL --suite coding|repair|hard|readonly|all --trials 1..100`. Live sessions consume Copilot usage.
 
 `-Model auto` uses Copilot's supported automatic routing. Reports record concrete model IDs when event metadata exposes them. Routing may differ across calls: treat such runs as exploratory, and pin an available explicit model for a controlled comparison. Authentication and unavailable-model errors stop the matrix. Unattempted cases are not passes.
 

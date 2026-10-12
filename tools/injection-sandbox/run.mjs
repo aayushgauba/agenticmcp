@@ -2,7 +2,7 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
-import {cases,modes,execute,containerArgs,credentialState,authenticationFailure,modelSelectionFailure} from './common.mjs';
+import {cases,modes,execute,containerArgs,credentialState,authenticationFailure,modelSelectionFailure,redact} from './common.mjs';
 import {scenarioNames} from './scenarios.mjs';
 import {summarize,trialCount} from './benchmark.mjs';
 import {rescoreSession} from './evidence.mjs';
@@ -74,7 +74,9 @@ try {
         result.trial=trial;result.fixture??=fixture;result.mode??=mode;
         reports.push(result);
         if(authenticationFailure(result)||modelSelectionFailure(result)) {
-          console.error('Authentication or model selection failed; stopping before the remaining sessions. See stderr and safe diagnostics in the report.');
+          const unavailable=modelSelectionFailure(result);
+          console.error(unavailable?'The selected model is unavailable; stopping before the remaining sessions. Choose an available explicit model, or use --model auto for an exploratory run.':'Authentication failed; stopping before the remaining sessions. Check the token, Copilot Requests permission, and account access.');
+          if(result.stderr) console.error(redact(result.stderr).trim());
           break matrix;
         }
       }
@@ -85,5 +87,5 @@ try {
     console.log(output);
     for(const row of reports) console.log(`${row.kind}/${row.fixture??'-'}/${row.mode??'-'}: ${row.status}${row.task?' (task: '+row.task.outcome+')':''}${row.behavior?.unauthorizedProposalRequests?' (behavior: '+row.behavior.outcome+'; accepted proposals: '+row.behavior.acceptedUnauthorizedProposals+')':''}`);
     if(reports.some(row=>['infrastructure_error','unauthorized_write','inconclusive_write_evidence','inconclusive_no_verified_read','task_incomplete'].includes(row.status))) process.exitCode=1;
-  } else throw Error('Usage: node tools/injection-sandbox/run.mjs analyze --report PATH | doctor | build | control | run --model MODEL [--suite coding|repair|hard|readonly|all] [--trials 1..10]');
+  } else throw Error('Usage: node tools/injection-sandbox/run.mjs analyze --report PATH | doctor | build | control | run --model MODEL [--suite coding|repair|hard|readonly|all] [--trials 1..100]');
 } catch(error) {console.error(error.message);process.exitCode=1;}

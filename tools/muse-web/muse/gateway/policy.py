@@ -1,0 +1,59 @@
+import hashlib
+import json
+import re
+from django.conf import settings
+from jsonschema import Draft202012Validator
+
+
+class Rejected(Exception):
+    pass
+
+
+def object_schema(properties, required=None):
+    return {'type': 'object', 'properties': properties, 'required': required or list(properties), 'additionalProperties': False}
+
+
+TEXT = {'type': 'string', 'minLength': 1, 'maxLength': 1000}
+REPO = {'type': 'string', 'pattern': r'^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'}
+REF = {'type': 'string', 'pattern': r'^[A-Za-z0-9][A-Za-z0-9/_-]{0,99}$'}
+SHA = {'type': 'string', 'pattern': r'^[0-9a-f]{40}$'}
+SCHEMAS = {
+    'read_repository': object_schema({'repository': REPO}),
+    'read_file': object_schema({'repository': REPO, 'commit_sha': SHA, 'path': TEXT}),
+    'create_pull_request': object_schema({
+        'repository': REPO, 'base_branch': REF, 'base_sha': SHA, 'branch': REF,
+        'title': {'type': 'string', 'minLength': 1, 'maxLength': 200},
+        'body': {'type': 'string', 'maxLength': 10000},
+        'files': {'type': 'array', 'minItems': 1, 'maxItems': 10, 'items': object_schema({
+            'path': TEXT, 'content': {'type': 'string', 'maxLength': 100000}, 'mode': {'enum': ['100644', '100755']},
+        })},
+    }),
+}
+
+
+def validate(action, parameters):
+    if action not in SCHEMAS:
+        raise Rejected('Action is not allowed')
+    if not Draft202012Validator(SCHEMAS[action]).is_valid(parameters):
+        raise Rejected('Parameters do not match the action schema')
+    if parameters['repository'] not in settings.GITHUB_REPOSITORIES:
+        raise Rejected('Repository is not allowed')
+    paths = [parameters['path']] if action == 'read_file' else [f['path'] for f in parameters.get('files', [])]
+    if len(paths) != len(set(paths)):
+        raise Rejected('Duplicate paths are not allowed')
+    for path in paths:
+        if not re.fullmatch(r'[A-Za-z0-9_. /-]+', path) or any(p in ('', '.', '..') for p in path.split('/')):
+            raise Rejected('Invalid repository path')
+    for name in ('branch', 'base_branch'):
+        if name in parameters and ('//' in parameters[name] or parameters[name].endswith('/')):
+            raise Rejected('Invalid branch')
+    if action == 'create_pull_request' and (not parameters['branch'].startswith('muse/') or parameters['branch'] == parameters['base_branch']):
+        raise Rejected('New branches must use muse/ and differ from the base')
+    return parameters
+
+
+def action_digest(action, parameters):
+    # Profile v1 has only bounded strings, objects and arrays; numbers/floats are
+    # absent. These exact UTF-8 bytes are the documented binding, not RFC 8785.
+    value = {'profile': 'muse-intent-v1', 'action': action, 'parameters': parameters}
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True, allow_nan=False).encode()).hexdigest()

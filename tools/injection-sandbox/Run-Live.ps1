@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory=$true)][ValidateNotNullOrEmpty()][string]$Model,
     [switch]$TokenFromClipboard,
     [ValidateSet('coding','repair','hard','readonly','all')][string]$Suite = 'coding',
-    [ValidateRange(1,10)][int]$Trials = 1
+    [ValidateRange(1,100)][int]$Trials = 1
 )
 $ErrorActionPreference = 'Stop'
 $sandboxPreviousToken = $env:COPILOT_GITHUB_TOKEN
@@ -26,7 +26,12 @@ try {
         $sandboxInputLength = $env:COPILOT_GITHUB_TOKEN.Length
         $sandboxPrefixPresent = $env:COPILOT_GITHUB_TOKEN.StartsWith('github_pat_')
         $sandboxControlPresent = $env:COPILOT_GITHUB_TOKEN -match '[\x00-\x1F\x7F]'
-        throw "Token input did not match the expected format. Characters=$sandboxInputLength; expectedPrefix=$sandboxPrefixPresent; controlCharacters=$sandboxControlPresent. Token value was not printed or sent. If hidden paste failed, copy the token and rerun with -TokenFromClipboard."
+        if ($TokenFromClipboard) {
+            $sandboxInputHelp = 'The clipboard does not contain a single fine-grained token value. Copy only the generated github_pat_ token, then retry. Alternatively omit -TokenFromClipboard to use existing environment credentials or hidden input. Do not paste the token into chat.'
+        } else {
+            $sandboxInputHelp = 'Provide only the generated github_pat_ token value. If hidden paste failed, copy that value and retry with -TokenFromClipboard. Do not paste the token into chat.'
+        }
+        throw "Token input did not match the expected format. Characters=$sandboxInputLength; expectedPrefix=$sandboxPrefixPresent; controlCharacters=$sandboxControlPresent. Token value was not printed or sent. $sandboxInputHelp"
     }
     & node (Join-Path $PSScriptRoot 'run.mjs') run --model $Model --suite $Suite --trials $Trials
     $sandboxExit = $LASTEXITCODE
