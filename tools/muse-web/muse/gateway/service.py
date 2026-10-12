@@ -21,11 +21,20 @@ def load_intent(intent_id, actor=None):
 
 
 def propose(actor, action, parameters):
-    validate(action, parameters)
+    try:
+        validate(action, parameters)
+    except Rejected as error:
+        if action == 'sandbox_request' and settings.SANDBOX_ENABLED:
+            from .sandbox import record, safe_parameters
+            record('approval', 'rejected_proposal', safe_parameters(parameters), {'error': str(error)})
+        raise
     with transaction.atomic():
         intent = Intent.objects.create(actor=actor, action=action, parameters=parameters,
             digest=action_digest(action, parameters), expires_at=timezone.now() + timedelta(seconds=settings.PROPOSAL_TTL_SECONDS))
         AuditEvent.objects.create(intent=intent, event='proposed', actor=actor)
+        if action == 'sandbox_request':
+            from .sandbox import record
+            record('approval', 'proposed', parameters, {'status': 'pending'}, intent.id)
     return status(actor, str(intent.id))
 
 
@@ -43,6 +52,10 @@ def status(actor, intent_id):
         result['intent_token'] = mint(intent)
     if intent.status in ('succeeded', 'unknown'):
         result['result'] = intent.result
+    if intent.action == 'sandbox_request':
+        from .sandbox import record
+        record('approval', 'status', {'intent_id': str(intent.id)},
+               {k: v for k, v in result.items() if k != 'intent_token'}, intent.id)
     return result
 
 
@@ -64,6 +77,17 @@ def decide(intent_id, user, digest, approve):
 
 
 def execute(actor, intent_id, action, parameters, intent_token):
+    try:
+        result = _execute(actor, intent_id, action, parameters, intent_token)
+    except Rejected as error:
+        if action == 'sandbox_request' and settings.SANDBOX_ENABLED:
+            from .sandbox import record, safe_parameters
+            record('approval', 'rejected', safe_parameters(parameters), {'error': str(error)}, intent_id)
+        raise
+    return result
+
+
+def _execute(actor, intent_id, action, parameters, intent_token):
     # This is the common verification boundary for both MCP and REST. There is
     # no alternate tool or API that can forward without these checks.
     validate(action, parameters)
@@ -84,7 +108,11 @@ def execute(actor, intent_id, action, parameters, intent_token):
             raise Rejected('Intent is expired, already used, or not approved')
         AuditEvent.objects.create(intent=intent, event='execution_started', actor=actor)
     try:
-        result = execute_forward(parameters) if action == 'forward_request' else execute_github(action, parameters)
+        if action == 'sandbox_request':
+            from .sandbox import execute as execute_sandbox
+            result = execute_sandbox(parameters, 'approval', intent.id)
+        else:
+            result = execute_forward(parameters) if action == 'forward_request' else execute_github(action, parameters)
     except Exception:
         # Timeout/partial upstream success is ambiguous. Never re-arm a token,
         # automatically retry, or expose upstream responses/credentials.

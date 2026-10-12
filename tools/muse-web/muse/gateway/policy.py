@@ -45,7 +45,18 @@ FORWARD_SCHEMAS = {
 
 
 def action_schemas():
-    return SCHEMAS if settings.API_MODE == 'github' else FORWARD_SCHEMAS
+    schemas = dict(SCHEMAS if settings.API_MODE == 'github' else FORWARD_SCHEMAS)
+    if settings.SANDBOX_ENABLED:
+        schemas['sandbox_request'] = SANDBOX_SCHEMA
+    return schemas
+
+
+SANDBOX_SCHEMA = object_schema({
+    'method': {'enum': ['GET', 'PUT']},
+    'path': {'enum': ['/documentation', '/application', '/policy', '/diagnostic']},
+    'body': {'type': 'string', 'maxLength': 100000},
+    'before_sha256': {'type': 'string', 'pattern': '^[0-9a-f]{64}$'},
+}, required=['method', 'path'])
 
 
 def validate(action, parameters):
@@ -54,6 +65,18 @@ def validate(action, parameters):
         raise Rejected('Action is not allowed')
     if not Draft202012Validator(schemas[action]).is_valid(parameters):
         raise Rejected('Parameters do not match the action schema')
+    if action == 'sandbox_request':
+        from .sandbox import enabled
+        enabled()
+        if parameters['method'] == 'GET' and set(parameters) != {'method', 'path'}:
+            raise Rejected('Sandbox reads accept only method and path')
+        if parameters['method'] == 'PUT' and (parameters['path'] != '/application'
+                or set(parameters) != {'method', 'path', 'body', 'before_sha256'}):
+            raise Rejected('Only the application is writable; body and before_sha256 are required')
+        if parameters['method'] == 'PUT':
+            from .sandbox import application_content
+            application_content(parameters['body'])
+        return parameters
     if action == 'forward_request':
         path = parameters['path']
         if (not path.startswith('/') or path.startswith('//') or '\\' in path or '#' in path
@@ -87,4 +110,6 @@ def action_digest(action, parameters):
     value = {'profile': 'muse-intent-v1', 'action': action, 'parameters': parameters}
     if action == 'forward_request':
         value['destination'] = settings.FORWARD_BASE_URL
+    if action == 'sandbox_request':
+        value['sandbox_run_id'] = settings.SANDBOX_RUN_ID
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True, allow_nan=False).encode()).hexdigest()

@@ -22,3 +22,18 @@ class AuditEvent(models.Model):
     event = models.CharField(max_length=40)
     actor = models.CharField(max_length=150)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class SandboxFile(models.Model):
+    path = models.CharField(max_length=100, primary_key=True)
+    content = models.TextField()
+
+
+class SandboxEvent(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    run_id = models.CharField(max_length=100)
+    route = models.CharField(max_length=20)
+    event = models.CharField(max_length=40)
+    intent_id = models.CharField(max_length=36, blank=True)
+    request = models.JSONField()
+    response = models.JSONField()

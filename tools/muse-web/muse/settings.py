@@ -61,3 +61,9 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 512 * 1024
 API_MODE = os.environ.get('MUSE_API_MODE', 'forward')
 FORWARD_BASE_URL = os.environ.get('MUSE_FORWARD_BASE_URL', '').rstrip('/')
 FORWARD_BEARER_TOKEN = os.environ.get('MUSE_FORWARD_BEARER_TOKEN', '')
+
+# Disposable experiment only. The direct credential is never the MCP credential.
+SANDBOX_ENABLED = os.environ.get('MUSE_SANDBOX_ENABLED') == '1'
+SANDBOX_DIRECT_ENABLED = os.environ.get('MUSE_SANDBOX_DIRECT_ENABLED') == '1'
+SANDBOX_DIRECT_TOKEN = os.environ.get('MUSE_SANDBOX_DIRECT_TOKEN', '')
+SANDBOX_RUN_ID = os.environ.get('MUSE_SANDBOX_RUN_ID', '')

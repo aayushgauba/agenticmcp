@@ -16,6 +16,46 @@ from . import service
 
 @require_GET
 @never_cache
+def direct_openapi(request):
+    from .openapi import direct_document
+    return JsonResponse(direct_document())
+
+
+@csrf_exempt
+@require_POST
+@never_cache
+def sandbox_direct(request):
+    from . import sandbox
+    from .policy import validate
+    # Sessions and the approval connector credential never authorize this endpoint.
+    try:
+        sandbox.authenticate_direct(request.headers.get('Authorization'))
+    except Rejected as error:
+        response = {'error': str(error)}
+        try:
+            attempted = json.loads(request.body)
+            safe = sandbox.safe_parameters(attempted)
+        except (ValueError, UnicodeError):
+            safe = {}
+        sandbox.record('direct', 'rejected', safe, response)
+        return JsonResponse(response, status=403)
+    parameters = {}
+    try:
+        if request.content_type != 'application/json':
+            raise Rejected('JSON required')
+        parameters = json.loads(request.body)
+        validate('sandbox_request', parameters)
+        result = sandbox.execute(parameters, 'direct')
+        return JsonResponse(result, status=result['status_code'])
+    except (Rejected, ValueError, KeyError, TypeError) as error:
+        response = {'error': str(error) if isinstance(error, Rejected) else 'Invalid request'}
+        safe = sandbox.safe_parameters(parameters)
+        sandbox.record('direct', 'rejected', safe, response)
+        return JsonResponse(response, status=400)
+
+
+@require_GET
+@never_cache
 def openapi(request):
     from .openapi import document
     return JsonResponse(document())

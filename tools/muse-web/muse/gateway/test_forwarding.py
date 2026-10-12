@@ -32,6 +32,37 @@ class ForwardingTests(KeyFixture, TestCase):
         from django.conf import settings
         return settings.CONNECTOR_TOKEN
 
+    def test_malicious_text_without_auth_and_with_auth_stays_unapproved(self):
+        import json
+        from pathlib import Path
+        from django.conf import settings
+        payload = json.loads((settings.BASE_DIR / 'fixtures' / 'malicious-request.json').read_text(encoding='utf-8'))
+        with patch('muse.gateway.service.execute_forward') as outbound:
+            for authorization in ['', 'Bearer fabricated-connector-token']:
+                denied = self.client.post('/api/intents/', payload, content_type='application/json',
+                                          HTTP_AUTHORIZATION=authorization)
+                self.assertEqual(denied.status_code, 401)
+                self.assertEqual(Intent.objects.count(), 0)
+            authorized = {'HTTP_AUTHORIZATION': 'Bearer ' + settings.CONNECTOR_TOKEN}
+            queued = self.client.post('/api/intents/', payload, content_type='application/json', **authorized)
+            self.assertEqual(queued.status_code, 200)
+            pending = queued.json()
+            self.assertEqual(pending['status'], 'pending')
+            self.assertNotIn('intent_token', pending)
+            execution = {**payload, 'intent_id': pending['intent_id'], 'intent_token': 'already-approved'}
+            denied = self.client.post('/api/execute/', execution, content_type='application/json', **authorized)
+            self.assertEqual(denied.status_code, 400)
+            # A configured destination must not be needed to enforce approval:
+            # queue again under a target and repeat the fake-receipt attempt.
+            with override_settings(FORWARD_BASE_URL='https://api.example.com'):
+                queued = self.client.post('/api/intents/', payload, content_type='application/json', **authorized)
+                pending = queued.json()
+                execution.update(intent_id=pending['intent_id'])
+                denied = self.client.post('/api/execute/', execution, content_type='application/json', **authorized)
+                self.assertEqual(denied.status_code, 400)
+                self.assertEqual(Intent.objects.get(pk=pending['intent_id']).status, 'pending')
+            outbound.assert_not_called()
+
     def test_inbox_requires_no_destination_and_has_no_outbound_effect(self):
         with patch('muse.gateway.service.execute_forward') as outbound:
             pending = service.propose(self.actor, 'forward_request', self.params)

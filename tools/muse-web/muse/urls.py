@@ -4,6 +4,8 @@ from .gateway import views
 
 urlpatterns = [
     path('openapi.json', views.openapi),
+    path('openapi-direct.json', views.direct_openapi),
+    path('api/sandbox/direct/', views.sandbox_direct),
     path('', views.approvals),
     path('accounts/login/', LoginView.as_view(template_name='muse/login.html')),
     path('accounts/logout/', LogoutView.as_view(next_page='/accounts/login/')),
