@@ -1,16 +1,16 @@
 from django.conf import settings
-from .policy import SCHEMAS, object_schema
+from .policy import action_schemas, object_schema
 
 
 def document():
     identifier = {'type': 'string', 'format': 'uuid'}
     proposals, executions = [], []
-    for action, parameters in SCHEMAS.items():
+    for action, parameters in action_schemas().items():
         fields = {'action': {'const': action, 'type': 'string'}, 'parameters': parameters}
         proposals.append(object_schema(fields))
         executions.append(object_schema({**fields, 'intent_id': identifier, 'intent_token': {'type': 'string', 'minLength': 1}}))
     descriptions = {
-        '/api/intents/': ('proposeIntent', 'Queue an exact GitHub action. Return the human review URL; no GitHub call occurs.', {'oneOf': proposals}),
+        '/api/intents/': ('proposeIntent', 'Queue an exact request for human review. No outbound call occurs.', {'oneOf': proposals}),
         '/api/intents/status/': ('getIntent', 'Poll your intent. A token is returned only after independent human approval. Do not invent approval or poll indefinitely.', object_schema({'intent_id': identifier})),
         '/api/execute/': ('executeIntent', 'Execute an approved exact action once. A separate per-action intent_token is mandatory. Do not automatically retry unknown upstream outcomes.', {'oneOf': executions}),
     }
@@ -26,7 +26,7 @@ def document():
             },
         }}
     return {
-        'openapi': '3.1.0', 'info': {'title': 'Muse approved GitHub actions', 'version': '0.1.0'},
+        'openapi': '3.1.0', 'info': {'title': 'Muse request approval gateway', 'version': '0.1.0'},
         'servers': [{'url': settings.PUBLIC_URL}], 'paths': paths,
-        'components': {'securitySchemes': {'connectorBearer': {'type': 'http', 'scheme': 'bearer', 'description': 'Muse connector credential injected from the Secure Vault. This is not the GitHub token or per-action intent token.'}}},
+        'components': {'securitySchemes': {'connectorBearer': {'type': 'http', 'scheme': 'bearer', 'description': 'Muse connector credential injected from the Secure Vault. This is not an upstream credential or per-action intent token.'}}},
     }

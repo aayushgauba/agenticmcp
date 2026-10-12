@@ -31,11 +31,40 @@ SCHEMAS = {
 }
 
 
+FORWARD_SCHEMAS = {
+    'forward_request': object_schema({
+        'method': {'enum': ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']},
+        'path': {'type': 'string', 'minLength': 1, 'maxLength': 2048},
+        'headers': {'type': 'object', 'properties': {
+            'Accept': {'type': 'string', 'maxLength': 200},
+            'Content-Type': {'type': 'string', 'maxLength': 200},
+        }, 'additionalProperties': False},
+        'body': {'type': 'string', 'maxLength': 100000},
+    }, required=['method', 'path']),
+}
+
+
+def action_schemas():
+    return SCHEMAS if settings.API_MODE == 'github' else FORWARD_SCHEMAS
+
+
 def validate(action, parameters):
-    if action not in SCHEMAS:
+    schemas = action_schemas()
+    if action not in schemas:
         raise Rejected('Action is not allowed')
-    if not Draft202012Validator(SCHEMAS[action]).is_valid(parameters):
+    if not Draft202012Validator(schemas[action]).is_valid(parameters):
         raise Rejected('Parameters do not match the action schema')
+    if action == 'forward_request':
+        path = parameters['path']
+        if (not path.startswith('/') or path.startswith('//') or '\\' in path or '#' in path
+                or any(ord(c) < 33 or ord(c) == 127 for c in path)):
+            raise Rejected('Use a relative API path beginning with a single slash')
+        for value in parameters.get('headers', {}).values():
+            if any(ord(c) < 32 or ord(c) == 127 for c in value):
+                raise Rejected('Invalid request header')
+        if parameters['method'] in ('GET', 'HEAD') and parameters.get('body'):
+            raise Rejected('GET and HEAD requests cannot have a body')
+        return parameters
     if parameters['repository'] not in settings.GITHUB_REPOSITORIES:
         raise Rejected('Repository is not allowed')
     paths = [parameters['path']] if action == 'read_file' else [f['path'] for f in parameters.get('files', [])]
@@ -56,4 +85,6 @@ def action_digest(action, parameters):
     # Profile v1 has only bounded strings, objects and arrays; numbers/floats are
     # absent. These exact UTF-8 bytes are the documented binding, not RFC 8785.
     value = {'profile': 'muse-intent-v1', 'action': action, 'parameters': parameters}
+    if action == 'forward_request':
+        value['destination'] = settings.FORWARD_BASE_URL
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True, allow_nan=False).encode()).hexdigest()

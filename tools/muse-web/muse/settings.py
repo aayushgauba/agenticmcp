@@ -56,3 +56,8 @@ X_FRAME_OPTIONS = 'DENY'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 512 * 1024
 # No forwarded-host/proto headers are trusted by default. Terminate TLS on this
 # server or configure a trusted reverse proxy explicitly; never trust arbitrary headers.
+
+# Default to a generic approval inbox; no destination is required to receive requests.
+API_MODE = os.environ.get('MUSE_API_MODE', 'forward')
+FORWARD_BASE_URL = os.environ.get('MUSE_FORWARD_BASE_URL', '').rstrip('/')
+FORWARD_BEARER_TOKEN = os.environ.get('MUSE_FORWARD_BEARER_TOKEN', '')

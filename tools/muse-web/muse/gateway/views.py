@@ -2,6 +2,7 @@ import json
 from functools import wraps
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseForbidden
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -80,6 +81,6 @@ def approvals(request, intent_id=None):
             return redirect('review', intent_id=intent.id)
         if request.method != 'GET':
             raise Rejected('Unsupported method')
-        return render(request, 'muse/review.html', {'intent': intent, 'parameters': json.dumps(intent.parameters, indent=2, ensure_ascii=True)})
+        return render(request, 'muse/review.html', {'intent': intent, 'parameters': json.dumps(intent.parameters, indent=2, ensure_ascii=True), 'destination': settings.FORWARD_BASE_URL if intent.action == 'forward_request' else None})
     except Rejected as error:
         return JsonResponse({'error': str(error)}, status=400)

@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 from .github import execute_github
+from .forwarding import execute_forward, destination
 from .models import Intent, AuditEvent
 from .policy import Rejected, validate, action_digest
 from .tokens import mint, verify
@@ -35,6 +36,9 @@ def status(actor, intent_id):
         'action': intent.action, 'action_sha256': intent.digest,
         'review_url': settings.PUBLIC_URL + '/approvals/' + str(intent.id) + '/',
         'expires_at': intent.expires_at.isoformat()}
+    if intent.action == 'forward_request':
+        result['destination'] = settings.FORWARD_BASE_URL or None
+        result['forwarding_configured'] = bool(settings.FORWARD_BASE_URL)
     if intent.status == 'approved' and not expired:
         result['intent_token'] = mint(intent)
     if intent.status in ('succeeded', 'unknown'):
@@ -61,7 +65,7 @@ def decide(intent_id, user, digest, approve):
 
 def execute(actor, intent_id, action, parameters, intent_token):
     # This is the common verification boundary for both MCP and REST. There is
-    # no alternate tool or API that can call GitHub without these checks.
+    # no alternate tool or API that can forward without these checks.
     validate(action, parameters)
     claims = verify(intent_token, actor)
     intent = load_intent(intent_id, actor)
@@ -70,6 +74,8 @@ def execute(actor, intent_id, action, parameters, intent_token):
         raise Rejected('Intent token does not bind this exact action and parameters')
     if not intent.approved_by_id or not intent.approved_at:
         raise Rejected('Independent approval is missing')
+    if action == 'forward_request':
+        destination()  # Fail before consuming approval when forwarding is unconfigured.
     # Atomic compare-and-swap works on SQLite too. Consume before external I/O
     # and commit immediately: concurrent requests/replays cannot both execute.
     with transaction.atomic():
@@ -78,7 +84,7 @@ def execute(actor, intent_id, action, parameters, intent_token):
             raise Rejected('Intent is expired, already used, or not approved')
         AuditEvent.objects.create(intent=intent, event='execution_started', actor=actor)
     try:
-        result = execute_github(action, parameters)
+        result = execute_forward(parameters) if action == 'forward_request' else execute_github(action, parameters)
     except Exception:
         # Timeout/partial upstream success is ambiguous. Never re-arm a token,
         # automatically retry, or expose upstream responses/credentials.

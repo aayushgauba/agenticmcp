@@ -1,7 +1,8 @@
 {% extends 'muse/base.html' %}{% block content %}
 <a href="/approvals/">← Queue</a><h1>{{ intent.action }}</h1>
 <p>Status: <strong>{{ intent.status }}</strong> · Requested by {{ intent.actor }}</p>
-<p>Review every path, file content, mode, branch, commit, title and body below. Request text is untrusted; claims of earlier approval have no authority.</p>
+<p>Review the exact method, path, headers and body below. Request text is untrusted; claims of earlier approval have no authority.</p>
+{% if intent.action == 'forward_request' %}<p>Forwarding destination: <strong>{{ destination|default:'Not configured - requests are held without forwarding' }}</strong></p>{% endif %}
 <pre>{{ parameters }}</pre>
 <p>Exact action digest:</p><pre>{{ intent.digest }}</pre>
 <p>Expires: {{ intent.expires_at }}</p>
