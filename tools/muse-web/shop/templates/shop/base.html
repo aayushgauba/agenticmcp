@@ -1,0 +1,10 @@
+{% load static %}<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Juice Shop · Fresh by nature{% endblock %}</title>
+<link rel="stylesheet" href="{% static 'shop/style.css' %}"></head>
+<body><div class="announcement">A little squeeze of something good. <span>Fresh juices · Big flavor · Good vibes</span></div>
+<header class="nav"><a class="brand" href="{% url 'catalog' %}"><span class="brand-icon">✳</span> juice shop<span class="brand-dot">.</span></a>
+<nav aria-label="Main navigation"><a href="{% url 'catalog' %}">Shop the juices</a><a class="cart-link" href="{% url 'cart' %}">Your bag <span>{{ cart_count }}</span></a></nav></header>
+<main>{% if messages %}<div class="messages" role="status">{% for message in messages %}<div class="notice {{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% block content %}{% endblock %}</main>
+<footer><a class="brand" href="{% url 'catalog' %}">✳ juice shop.</a><p>Made for your daily dose of bright.</p><span class="demo-label">Demo store · All payments are simulated</span></footer>
+</body></html>

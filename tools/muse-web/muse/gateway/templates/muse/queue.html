@@ -1,6 +1,0 @@
-{% extends 'muse/base.html' %}{% block content %}
-<h1>Approval queue</h1><p>Every request waits for a decision on its exact parameters.</p>
-<table><tr><th>Action</th><th>Status</th><th>Requested</th></tr>
-{% for intent in intents %}<tr><td><a href="{% url 'review' intent.id %}">{{ intent.action }}</a></td><td>{{ intent.status }}</td><td>{{ intent.created_at }}</td></tr>{% empty %}<tr><td colspan="3">No requests yet.</td></tr>{% endfor %}</table>
-<form method="post" action="/accounts/logout/">{% csrf_token %}<button type="submit">Sign out</button></form>
-{% endblock %}

@@ -1,0 +1,32 @@
+{% extends 'shop/base.html' %}
+{% block title %}Demo payment · Juice Shop{% endblock %}
+{% block content %}
+<section class="page payment-page">
+  <p class="eyebrow">JUICE PAY / SIMULATION</p>
+  <h1>One last squeeze.</h1>
+  <div class="panel gateway">
+    <span class="demo-label">FAKE PAYMENT · NO REAL CHARGE</span>
+    <p class="payment-amount">${{ order.total }} <small>USD</small></p>
+    <p>For {{ order.name }} · {{ order.email }}</p>
+    <div class="summary-line"><span>Order</span><span class="mono">{{ order.pk|truncatechars:16 }}</span></div>
+    <p id="test-card-help">This is a fake payment gateway. <strong>Never enter real card details.</strong> Only test details are accepted. Card details are not saved to your order.</p>
+    <form class="details-form" method="post" action="{% url 'pay' order.pk %}" autocomplete="off" aria-describedby="test-card-help">
+      {% csrf_token %}
+      <input type="hidden" name="token" value="{{ token }}">
+      {% if form.errors %}<p role="alert">Enter valid fake test details. No payment has been recorded.</p>{% endif %}
+      <div>
+        <label for="card-number">Fake card number</label>
+        <input id="card-number" name="card_number" type="text" inputmode="numeric" autocomplete="off" placeholder="4242 4242 4242 4242" maxlength="23" pattern="4242 ?4242 ?4242 ?4242" required aria-describedby="test-card-help">
+        {{ form.card_number.errors }}
+      </div>
+      <div class="fake-card-row">
+        <div><label for="card-expiry">Fake expiry (MM/YY)</label><input id="card-expiry" name="expiry" type="text" inputmode="numeric" autocomplete="off" placeholder="12/30" maxlength="5" pattern="12/30" required>{{ form.expiry.errors }}</div>
+        <div><label for="card-cvv">Fake security code</label><input id="card-cvv" name="cvv" type="password" inputmode="numeric" autocomplete="off" placeholder="123" maxlength="3" pattern="123" required>{{ form.cvv.errors }}</div>
+      </div>
+      <button class="button full" name="outcome" value="approve">Simulate successful payment ↗</button>
+      <button class="secondary-button full" name="outcome" value="decline">Simulate declined payment</button>
+    </form>
+    <p class="small-note">Payment session expires after 15 minutes. Refresh this page to start a new session.</p>
+  </div>
+</section>
+{% endblock %}

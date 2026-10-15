@@ -1,8 +1,2 @@
 Django==5.2.18
-PyJWT[crypto]==2.15.1
-cryptography==50.0.2
-httpx==0.28.1
-mcp==1.30.0
-uvicorn==0.54.0
-jsonschema==4.26.0
 python-dotenv==1.2.4

@@ -1,5 +1,0 @@
-{% extends 'muse/base.html' %}{% block content %}
-<h1>Sign in to review actions</h1>
-<p>This login belongs to the human approver. Connector credentials cannot approve requests.</p>
-<form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">Sign in</button></form>
-{% endblock %}
