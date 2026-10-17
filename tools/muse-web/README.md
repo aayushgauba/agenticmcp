@@ -1,9 +1,9 @@
 # Juice Shop — Django shopping and simulated payment demo
 
-The former Muse gateway has been replaced completely. The directory name
-`tools/muse-web` remains so the existing checkout location can be reused.
-The Django project is now `juice_shop`, with a `shop` application and its own
-`shop.sqlite3` database. Old Muse state is not used or migrated into the shop.
+The Django project `juice_shop` hosts the storefront and the restored Muse
+approval gateway side by side. The home page remains the shop. Both use the
+current `shop.sqlite3` database; historical Muse databases are preserved and
+are not automatically imported.
 This is an independent juice storefront demo, not the OWASP Juice Shop project.
 
 ## Run locally
@@ -30,7 +30,7 @@ survive restarts. Keep `.env`, secrets, and SQLite databases out of Git.
 ## HTTP contract
 
 This is a browser application using `application/x-www-form-urlencoded` forms,
-not the former bearer-authenticated JSON API. Use a cookie jar and fetch a form
+separate from the bearer-authenticated Muse JSON API below. Use a cookie jar and fetch a form
 first to obtain the CSRF cookie and hidden `csrfmiddlewaretoken` value. Submit
 the matching token with session cookies. HTTPS clients must send an appropriate
 same-origin `Origin` or `Referer` header. CSRF checks are never disabled.
@@ -74,8 +74,7 @@ as a real provider integration.
 ## Deploy on PythonAnywhere
 
 From your actual checkout, currently `~/agenticmcp/tools/muse-web`, install the
-requirements and set the NEW environment variables in `.env`. Old `MUSE_*`
-settings have no effect. Do not overwrite your existing `.env` or historical
+requirements and set the NEW environment variables in `.env`. Configure the `MUSE_*` settings below as well to enable the Muse connector. Do not overwrite your existing `.env` or historical
 state if you need to retain prior experiment evidence.
 
 ```dotenv
@@ -112,7 +111,8 @@ application = get_wsgi_application()
 
 Configure the `/static/` URL mapping to
 `/home/unau/agenticmcp/tools/muse-web/staticfiles`, then reload the web app.
-The old `/mcp`, approval and sandbox API routes are removed. Uploading files
+The restored `/mcp`, approval and intent API routes work with this same WSGI
+configuration. Experimental direct sandbox routes remain removed. Uploading files
 without replacing the old WSGI module will not start the new application.
 The application does not trust forwarded scheme/host headers; configure any
 additional reverse proxy only according to that proxy's trusted-header setup.
@@ -120,7 +120,7 @@ additional reverse proxy only according to that proxy's trusted-header setup.
 ## Verify
 
 ```bash
-python manage.py test
+python manage.py test shop muse.gateway --settings=muse.test_settings
 python manage.py check
 python manage.py makemigrations --check --dry-run
 ```
@@ -128,4 +128,86 @@ python manage.py makemigrations --check --dry-run
 Tests use a separate temporary database and make no external payment requests.
 They cover lazy carts, ownership, quantities, CSRF, POST-only mutations, checkout
 snapshots and duplicate submission, signed payment validation and expiry,
-success/decline, replay, inventory rollback, and removal of old gateway routes.
+success/decline, replay, inventory rollback, and isolation from the experimental direct sandbox routes.
+
+
+## Restored Muse connector
+
+`/mcp` (also `/mcp/`) is a stateless Streamable HTTP MCP endpoint with JSON
+responses, usable under the existing PythonAnywhere **WSGI** configuration.
+No separate ASGI server, background worker, or persistent SSE connection is
+required. Authenticated GET and DELETE return 405 because streaming and session
+termination are not offered. Every POST includes `Accept: application/json,
+text/event-stream`, `Content-Type: application/json`, and
+`Authorization: Bearer <connector-token>`. Subsequent requests send the negotiated
+`MCP-Protocol-Version`. Supported versions: 2025-03-26, 2025-06-18, 2025-11-25.
+
+Tools: `action_schemas`, `propose_action`, `get_intent`, `execute_action`.
+Proposing queues an exact action and returns a review URL. A staff user signs
+in independently at `/accounts/login/`, reviews `/approvals/`, and approves or
+rejects with a CSRF-protected form. Only approved, unexpired status responses
+contain an execution token. Execution verifies exact parameters and destination,
+consumes approval atomically, and never retries an uncertain outbound operation.
+These are the Python gateway's `muse-intent-v1` receipts, not Rust file receipts.
+The Codex plugin is independent of this service.
+
+The same workflow is exposed through `/api/intents/`, `/api/intents/status/`,
+and `/api/execute/`; `/openapi.json` describes it for API-based connectors.
+Browser session cookies cannot authenticate the connector endpoints. MCP and
+REST enforce the configured host/origin, HTTPS outside loopback development,
+and bearer authentication. Missing connector configuration returns 503, invalid
+credentials return 401, and invalid origin/transport returns 403.
+
+### Deploy the restoration
+
+Upload this source (including `muse/`) to the existing PythonAnywhere checkout,
+then use its configured virtual environment:
+
+```bash
+cd ~/agenticmcp/tools/muse-web
+python -m pip install -r requirements.txt
+python manage.py migrate
+# Only for a fresh installation with no existing state/config.json or signing key:
+python manage.py init_muse
+# Only if no staff approval account exists in the CURRENT shop database:
+python manage.py createsuperuser
+```
+
+Keep the current `DJANGO_SECRET_KEY`, shop database, `.env`, and historical
+`state/` files. `init_muse` refuses to overwrite existing secrets; do not run it
+again when the old key pair and connector credential are present. The restored
+gateway reuses `state/config.json` and `state/signing.pem` by default, or the
+operator's `MUSE_STATE_DIR`, `MUSE_CONNECTOR_TOKEN`, and `MUSE_SIGNING_KEY_PATH`
+settings. It uses fresh gateway tables in the current database; old proposals,
+users, and audit data from a separate `state/muse.sqlite3` are not imported.
+
+Add or update these private deployment settings, preserving other settings:
+
+```dotenv
+MUSE_PUBLIC_URL=https://unau.pythonanywhere.com
+MUSE_LOCAL_HTTP=0
+MUSE_API_MODE=forward
+MUSE_FORWARD_BASE_URL=
+MUSE_FORWARD_BEARER_TOKEN=
+```
+
+Leave forwarding blank for a receive-and-review inbox with no outbound effects.
+To enable execution, configure one trusted bare HTTPS destination origin.
+Changing that origin invalidates earlier proposals. Upstream credentials stay
+server-side; forwarding rejects arbitrary URLs/headers and never follows
+redirects. The direct sandbox bypass remains disabled and unrouted.
+
+Reload the app in the PythonAnywhere Web tab. Configure Muse with
+`https://unau.pythonanywhere.com/mcp` and only the connector token in its secure
+credential field; never share signing keys or the complete config file.
+A bare browser GET is not a successful MCP handshake: use an authenticated
+initialize POST. No secret is printed by setup or committed to this repository.
+Source changes alone do not update the live PythonAnywhere deployment.
+
+Run all shop, gateway, transport, and SDK compatibility regressions with:
+
+```bash
+python manage.py test shop muse.gateway --settings=muse.test_settings
+python manage.py check
+python manage.py makemigrations --check --dry-run
+```

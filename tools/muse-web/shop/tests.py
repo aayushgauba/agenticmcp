@@ -153,8 +153,8 @@ class ShoppingTests(TestCase):
         self.assertEqual(order.status, 'pending')
         self.assertIsNone(order.paid_at)
 
-    def test_old_muse_endpoints_are_removed(self):
-        for path in ['/api/intents/', '/api/sandbox/direct/', '/approvals/', '/openapi.json', '/mcp']:
+    def test_experimental_direct_endpoints_remain_removed(self):
+        for path in ['/api/sandbox/direct/', '/openapi-direct.json']:
             self.assertEqual(self.client.get(path).status_code, 404)
 
     def test_fake_card_fields_are_required_and_only_demo_details_accepted(self):
