@@ -12,14 +12,14 @@ from .auth import authenticate
 from .models import Intent
 from .policy import Rejected
 from . import service
-from .transport import authorize
+from .transport import authorize, request_links
 
 
 @require_GET
 @never_cache
 def direct_openapi(request):
     from .openapi import direct_document
-    return JsonResponse(direct_document())
+    return JsonResponse(direct_document(request.build_absolute_uri('/').rstrip('/')))
 
 
 @csrf_exempt
@@ -59,7 +59,7 @@ def sandbox_direct(request):
 @never_cache
 def openapi(request):
     from .openapi import document
-    return JsonResponse(document())
+    return JsonResponse(document(request.build_absolute_uri('/').rstrip('/')))
 
 
 def api_view(func):
@@ -77,7 +77,7 @@ def api_view(func):
             data = json.loads(request.body)
             if not isinstance(data, dict):
                 raise Rejected('Object required')
-            return JsonResponse(func(actor, data))
+            return JsonResponse(request_links(request, func(actor, data)))
         except (Rejected, ValueError, KeyError, TypeError) as error:
             return JsonResponse({'error': str(error) if isinstance(error, Rejected) else 'Invalid request'}, status=400)
     return wrapper

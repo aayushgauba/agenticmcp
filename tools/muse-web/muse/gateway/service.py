@@ -43,7 +43,7 @@ def status(actor, intent_id):
     expired = intent.expires_at <= timezone.now() and intent.status in ('pending', 'approved')
     result = {'intent_id': str(intent.id), 'status': 'expired' if expired else intent.status,
         'action': intent.action, 'action_sha256': intent.digest,
-        'review_url': settings.PUBLIC_URL + '/approvals/' + str(intent.id) + '/',
+        'review_url': '/approvals/' + str(intent.id) + '/',
         'expires_at': intent.expires_at.isoformat()}
     if intent.action == 'forward_request':
         result['destination'] = intent.parameters.get('url') or settings.FORWARD_BASE_URL or None

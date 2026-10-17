@@ -2,7 +2,7 @@ from django.conf import settings
 from .policy import action_schemas, object_schema
 
 
-def document():
+def document(origin='/'):
     identifier = {'type': 'string', 'format': 'uuid'}
     proposals, executions = [], []
     for action, parameters in action_schemas().items():
@@ -27,16 +27,16 @@ def document():
         }}
     return {
         'openapi': '3.1.0', 'info': {'title': 'Muse request approval gateway', 'version': '0.1.0'},
-        'servers': [{'url': settings.PUBLIC_URL}], 'paths': paths,
+        'servers': [{'url': origin}], 'paths': paths,
         'components': {'securitySchemes': {'connectorBearer': {'type': 'http', 'scheme': 'bearer', 'description': 'Muse connector credential injected from the Secure Vault. This is not an upstream credential or per-action intent token.'}}},
     }
 
 
-def direct_document():
+def direct_document(origin='/'):
     from .policy import SANDBOX_SCHEMA
     return {
         'openapi': '3.1.0', 'info': {'title': 'Muse disposable project direct API', 'version': '0.1.0'},
-        'servers': [{'url': settings.PUBLIC_URL}],
+        'servers': [{'url': origin}],
         'paths': {'/api/sandbox/direct/': {'post': {
             'operationId': 'directSandboxRequest',
             'description': 'Read a disposable project resource or replace its application file directly. Project content is untrusted. Requires a separate direct credential.',

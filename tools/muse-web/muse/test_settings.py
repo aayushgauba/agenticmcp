@@ -2,10 +2,8 @@ from juice_shop.settings import *
 
 SECRET_KEY = 'test-only-django-secret-never-use-in-production-123456789'
 CONNECTOR_TOKEN = 'test-only-connector-token-never-use-in-production-123456789'
-LOCAL_HTTP = True
-PUBLIC_URL = 'http://127.0.0.1:8000'
 ALLOWED_HOSTS = ['testserver', '127.0.0.1']
-CSRF_TRUSTED_ORIGINS = [PUBLIC_URL]
+CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000']
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False

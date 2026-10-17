@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from jsonschema import Draft202012Validator
 from . import service
 from .policy import Rejected, action_schemas, object_schema
-from .transport import authorize
+from .transport import authorize, request_links
 
 VERSIONS = ('2025-03-26', '2025-06-18', '2025-11-25')
 TOOLS = [
@@ -99,7 +99,7 @@ def endpoint(request):
             else:
                 handler = {'propose_action': service.propose, 'get_intent': service.status,
                            'execute_action': service.execute}[tool['name']]
-                value = handler(actor, **arguments)
+                value = request_links(request, handler(actor, **arguments))
             result = {'content': [{'type': 'text', 'text': json.dumps(value)}], 'structuredContent': value, 'isError': False}
         except Rejected as rejected:
             result = {'content': [{'type': 'text', 'text': str(rejected)}], 'isError': True}

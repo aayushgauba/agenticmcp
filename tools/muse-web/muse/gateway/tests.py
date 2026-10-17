@@ -48,7 +48,7 @@ class EnforcementTests(KeyFixture, TestCase):
         response = self.client.get('/openapi.json')
         self.assertEqual(response.status_code, 200)
         spec = response.json()
-        self.assertEqual(spec['servers'][0]['url'], settings.PUBLIC_URL)
+        self.assertEqual(spec['servers'][0]['url'], 'http://127.0.0.1:8000')
         self.assertEqual(spec['components']['securitySchemes']['connectorBearer']['scheme'], 'bearer')
         execute = spec['paths']['/api/execute/']['post']
         self.assertEqual(execute['security'], [{'connectorBearer': []}])
@@ -241,15 +241,13 @@ class GitHubTests(TestCase):
 
 
 class MCPTests(KeyFixture, TransactionTestCase):
-    def test_public_deployment_cannot_enable_insecure_local_cookie_mode(self):
-        from muse.asgi import check_configuration
-        from django.core.exceptions import ImproperlyConfigured
-        with override_settings(PUBLIC_URL='https://muse.example', LOCAL_HTTP=True):
-            with self.assertRaises(ImproperlyConfigured):
-                check_configuration()
+    def test_untrusted_host_is_rejected_by_django(self):
+        response = self.client.get('/openapi.json', HTTP_HOST='untrusted.invalid')
+        self.assertEqual(response.status_code, 400)
 
     def test_http_transport_approval_execution_and_replay_with_official_client(self):
-        from muse.asgi import application, mcp
+        from muse.asgi import application
+        from contextlib import nullcontext
         from mcp import ClientSession
         from mcp.client.streamable_http import streamablehttp_client
         def tool_data(result):
@@ -257,11 +255,11 @@ class MCPTests(KeyFixture, TransactionTestCase):
         async def run():
             def factory(**kwargs):
                 return httpx.AsyncClient(transport=httpx.ASGITransport(app=application), **kwargs)
-            async with mcp.session_manager.run():
+            async with nullcontext():
                 async with factory() as client:
-                    self.assertEqual((await client.post(settings.PUBLIC_URL + '/mcp', json={})).status_code, 401)
-                    self.assertEqual((await client.post(settings.PUBLIC_URL + '/mcp', json={}, headers={'Authorization': 'Bearer ' + settings.CONNECTOR_TOKEN, 'Origin': 'https://evil.invalid'})).status_code, 403)
-                async with streamablehttp_client(settings.PUBLIC_URL + '/mcp', headers={'Authorization': 'Bearer ' + settings.CONNECTOR_TOKEN}, httpx_client_factory=factory) as (read, write, _):
+                    self.assertEqual((await client.post('http://127.0.0.1:8000' + '/mcp', json={})).status_code, 401)
+                    self.assertEqual((await client.post('http://127.0.0.1:8000' + '/mcp', json={}, headers={'Authorization': 'Bearer ' + settings.CONNECTOR_TOKEN, 'Origin': 'https://evil.invalid'})).status_code, 403)
+                async with streamablehttp_client('http://127.0.0.1:8000' + '/mcp', headers={'Authorization': 'Bearer ' + settings.CONNECTOR_TOKEN}, httpx_client_factory=factory) as (read, write, _):
                     async with ClientSession(read, write) as session:
                         await session.initialize()
                         tools = await session.list_tools()

@@ -154,9 +154,11 @@ The Codex plugin is independent of this service.
 The same workflow is exposed through `/api/intents/`, `/api/intents/status/`,
 and `/api/execute/`; `/openapi.json` describes it for API-based connectors.
 Browser session cookies cannot authenticate the connector endpoints. MCP and
-REST enforce the configured host/origin, HTTPS outside loopback development,
-and bearer authentication. Missing connector configuration returns 503, invalid
-credentials return 401, and invalid origin/transport returns 403.
+REST use Django ALLOWED_HOSTS, validate supplied Origin headers against the
+request origin or exact CSRF_TRUSTED_ORIGINS entries, and require bearer
+authentication. Missing credentials return 503, invalid credentials return 401,
+and untrusted Origin returns 403. Serve the deployment over HTTPS and use the
+normal Django/web-server TLS configuration.
 
 ### Deploy the restoration
 
@@ -184,8 +186,6 @@ users, and audit data from a separate `state/muse.sqlite3` are not imported.
 Add or update these private deployment settings, preserving other settings:
 
 ```dotenv
-MUSE_PUBLIC_URL=https://unau.pythonanywhere.com
-MUSE_LOCAL_HTTP=0
 MUSE_API_MODE=forward
 MUSE_FORWARD_BASE_URL=
 MUSE_FORWARD_BEARER_TOKEN=
@@ -246,3 +246,40 @@ responses are refused, and failed/uncertain executions are never retried.
 Hosting-provider egress rules still apply; application support cannot override
 a restricted hosting plan's network access policy. Deploy/reload the updated
 source and refresh Muse's discovered schemas to use the new `url` field.
+
+
+### Gateway configuration
+
+There is no custom public URL or local HTTP switch. Remove the obsolete
+`MUSE_PUBLIC_URL` and `MUSE_LOCAL_HTTP` entries from existing `.env` files if
+present; the application ignores them. The API destination is the `url` supplied
+in each proposal, not a gateway setting. Retain the connector credential, signing
+key, and human approval account.
+
+Use Django's existing deployment settings:
+
+```dotenv
+DJANGO_ALLOWED_HOSTS=unau.pythonanywhere.com
+DJANGO_CSRF_TRUSTED_ORIGINS=https://unau.pythonanywhere.com
+```
+
+Approval links and OpenAPI server URLs come from the validated incoming request.
+Approval token issuer/audience are fixed to the forwarder profile, independently
+of its hostname. Previously issued URL-based receipts must be refreshed through
+`get_intent` before execution; expiry, exact-action binding, one-use state, and
+independent approval remain enforced. No database migration is needed for this
+configuration simplification. Both WSGI and ASGI now use the same Django endpoint.
+
+Use HTTPS for public deployment. Django/web-server settings handle TLS;
+there is no separate connector HTTPS detection or loopback exception. As before,
+forwarded host/proto headers are not trusted unless the operator configures a
+trusted proxy. A client-supplied header cannot change generated approval links.
+Requests without an Origin header are accepted subject to bearer authentication.
+An Origin that is supplied must match the incoming request origin or an exact
+entry in Django CSRF_TRUSTED_ORIGINS; arbitrary Origins remain rejected.
+
+Run `python manage.py check_muse` for safe diagnostics, then reload the Web app.
+An unauthenticated `curl -i https://unau.pythonanywhere.com/mcp` should return
+401, indicating bearer authentication is required. After uploading this source,
+the old generic host/origin/HTTPS error should no longer appear. Source changes
+alone do not update the deployed app.

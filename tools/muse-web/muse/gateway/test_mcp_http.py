@@ -1,6 +1,8 @@
 import json
+from io import StringIO
 from unittest.mock import patch
 from django.conf import settings
+from django.core.management import call_command
 from django.test import Client, TestCase, TransactionTestCase, override_settings
 from .tests import KeyFixture
 
@@ -22,11 +24,9 @@ class HttpMcpTests(KeyFixture, TestCase):
     def test_transport_guards_and_discovery(self):
         self.assertEqual(self.rpc('tools/list', HTTP_AUTHORIZATION='').status_code, 401)
         self.assertEqual(self.rpc('tools/list', HTTP_ORIGIN='https://evil.invalid').status_code, 403)
-        self.assertEqual(self.rpc('tools/list', HTTP_HOST='testserver').status_code, 403)
+        self.assertEqual(self.rpc('tools/list', HTTP_HOST='testserver').status_code, 200)
         self.assertEqual(self.rpc('tools/list', HTTP_ACCEPT='text/html').status_code, 406)
         self.assertEqual(self.rpc('tools/list', HTTP_MCP_PROTOCOL_VERSION='2099-01-01').status_code, 400)
-        with override_settings(LOCAL_HTTP=False, PUBLIC_URL='https://127.0.0.1:8000'):
-            self.assertEqual(self.rpc('tools/list').status_code, 403)
         with override_settings(CONNECTOR_TOKEN=''):
             self.assertEqual(self.rpc('tools/list').status_code, 503)
         initialized = self.rpc('initialize', {'protocolVersion': '2025-11-25', 'capabilities': {},
@@ -41,6 +41,31 @@ class HttpMcpTests(KeyFixture, TestCase):
         self.assertEqual(self.rpc('tools/list', HTTP_AUTHORIZATION='').status_code, 401)
         self.assertEqual(self.client.get('/mcp', HTTP_HOST='127.0.0.1:8000',
                                         HTTP_AUTHORIZATION='Bearer ' + settings.CONNECTOR_TOKEN).status_code, 405)
+
+    def test_request_host_and_scheme_need_no_custom_muse_settings(self):
+        # Any host in Django ALLOWED_HOSTS works without a second host setting.
+        for host in ['127.0.0.1:8000', 'testserver']:
+            response = self.rpc('tools/list', HTTP_HOST=host)
+            self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.rpc('tools/list', HTTP_HOST='untrusted.invalid').status_code, 400)
+        response = self.rpc('tools/list', HTTP_ORIGIN='https://other.example')
+        self.assertEqual(response.json()['code'], 'origin_mismatch')
+        self.assertNotIn(settings.CONNECTOR_TOKEN, response.content.decode())
+        with override_settings(CSRF_TRUSTED_ORIGINS=['https://client.example']):
+            self.assertEqual(self.rpc('tools/list', HTTP_ORIGIN='https://client.example').status_code, 200)
+        # Header spoofing never changes the URL used for generated links.
+        response = self.client.post('/api/intents/',
+            {'action': 'forward_request', 'parameters': {'method': 'GET', 'url': 'https://example.org/'}},
+            content_type='application/json', secure=True, HTTP_HOST='testserver',
+            HTTP_X_FORWARDED_HOST='evil.invalid', HTTP_X_FORWARDED_PROTO='http',
+            HTTP_AUTHORIZATION='Bearer ' + settings.CONNECTOR_TOKEN)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['review_url'].startswith('https://testserver/approvals/'))
+        output = StringIO()
+        call_command('check_muse', stdout=output)
+        diagnostic = json.loads(output.getvalue())
+        self.assertTrue(diagnostic['connector_token_configured'])
+        self.assertNotIn(settings.CONNECTOR_TOKEN, output.getvalue())
 
     def test_exact_human_approval_then_one_execution(self):
         parameters = {'method': 'POST', 'path': '/jobs', 'body': 'hello'}
@@ -88,7 +113,7 @@ class SdkCompatibilityTests(KeyFixture, TransactionTestCase):
         def factory(**kwargs):
             return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), **kwargs)
 
-        async with streamablehttp_client(settings.PUBLIC_URL + '/mcp',
+        async with streamablehttp_client('http://127.0.0.1:8000' + '/mcp',
                 headers={'Authorization': 'Bearer ' + settings.CONNECTOR_TOKEN}, httpx_client_factory=factory) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()

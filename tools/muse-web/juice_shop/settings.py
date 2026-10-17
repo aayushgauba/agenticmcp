@@ -60,8 +60,6 @@ _muse_secrets = json.loads(_muse_config.read_text()) if _muse_config.exists() el
 CONNECTOR_TOKEN = os.getenv('MUSE_CONNECTOR_TOKEN', _muse_secrets.get('connector_token', ''))
 CONNECTOR_ID = 'muse-connector'
 SIGNING_KEY_PATH = Path(os.getenv('MUSE_SIGNING_KEY_PATH', STATE_DIR / 'signing.pem'))
-PUBLIC_URL = os.getenv('MUSE_PUBLIC_URL', 'http://127.0.0.1:8000').rstrip('/')
-LOCAL_HTTP = os.getenv('MUSE_LOCAL_HTTP', '1' if DEBUG else '0') == '1'
 API_MODE = os.getenv('MUSE_API_MODE', 'forward')
 FORWARD_BASE_URL = os.getenv('MUSE_FORWARD_BASE_URL', '').rstrip('/')
 FORWARD_BEARER_TOKEN = os.getenv('MUSE_FORWARD_BEARER_TOKEN', '')

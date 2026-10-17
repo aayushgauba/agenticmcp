@@ -4,6 +4,9 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from django.conf import settings
 from .policy import Rejected
 
+ISSUER = 'muse-forwarder'
+AUDIENCE = 'muse-forwarder:execute'
+
 
 def private_key():
     key = serialization.load_pem_private_key(settings.SIGNING_KEY_PATH.read_bytes(), password=None)
@@ -14,7 +17,7 @@ def private_key():
 
 def mint(intent):
     return jwt.encode({
-        'iss': settings.PUBLIC_URL, 'aud': settings.PUBLIC_URL + '/api/execute/',
+        'iss': ISSUER, 'aud': AUDIENCE,
         'sub': intent.actor, 'jti': str(intent.id),
         'iat': int(intent.approved_at.timestamp()), 'nbf': int(intent.approved_at.timestamp()),
         'exp': int(intent.expires_at.timestamp()), 'profile': 'muse-intent-v1',
@@ -27,7 +30,7 @@ def verify(token, actor):
         if jwt.get_unverified_header(token).get('typ') != 'muse-intent+jwt':
             raise Rejected('Wrong token type')
         claims = jwt.decode(token, private_key().public_key(), algorithms=['EdDSA'],
-            audience=settings.PUBLIC_URL + '/api/execute/', issuer=settings.PUBLIC_URL,
+            audience=AUDIENCE, issuer=ISSUER,
             options={'require': ['iss', 'aud', 'sub', 'jti', 'iat', 'nbf', 'exp', 'profile', 'action', 'action_sha256']})
         if claims['sub'] != actor or claims['profile'] != 'muse-intent-v1':
             raise Rejected('Wrong token subject or profile')
