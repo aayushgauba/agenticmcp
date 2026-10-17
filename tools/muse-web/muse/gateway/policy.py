@@ -35,13 +35,18 @@ FORWARD_SCHEMAS = {
     'forward_request': object_schema({
         'method': {'enum': ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']},
         'path': {'type': 'string', 'minLength': 1, 'maxLength': 2048},
+        'url': {'type': 'string', 'minLength': 1, 'maxLength': 4096, 'description': 'Full public HTTPS destination including path and query. Never include the connector token.'},
         'headers': {'type': 'object', 'properties': {
             'Accept': {'type': 'string', 'maxLength': 200},
             'Content-Type': {'type': 'string', 'maxLength': 200},
         }, 'additionalProperties': False},
         'body': {'type': 'string', 'maxLength': 100000},
-    }, required=['method', 'path']),
+    }, required=['method']),
 }
+FORWARD_SCHEMAS['forward_request']['oneOf'] = [
+    {'required': ['url'], 'not': {'required': ['path']}},
+    {'required': ['path'], 'not': {'required': ['url']}},
+]
 
 
 def action_schemas():
@@ -78,10 +83,14 @@ def validate(action, parameters):
             application_content(parameters['body'])
         return parameters
     if action == 'forward_request':
-        path = parameters['path']
-        if (not path.startswith('/') or path.startswith('//') or '\\' in path or '#' in path
-                or any(ord(c) < 33 or ord(c) == 127 for c in path)):
-            raise Rejected('Use a relative API path beginning with a single slash')
+        if 'url' in parameters:
+            from .forwarding import validate_url
+            validate_url(parameters['url'])
+        else:
+            path = parameters['path']
+            if (not path.startswith('/') or path.startswith('//') or '\\' in path or '#' in path
+                    or any(ord(c) < 33 or ord(c) == 127 for c in path)):
+                raise Rejected('Use a relative API path beginning with a single slash')
         for value in parameters.get('headers', {}).values():
             if any(ord(c) < 32 or ord(c) == 127 for c in value):
                 raise Rejected('Invalid request header')
@@ -108,7 +117,7 @@ def action_digest(action, parameters):
     # Profile v1 has only bounded strings, objects and arrays; numbers/floats are
     # absent. These exact UTF-8 bytes are the documented binding, not RFC 8785.
     value = {'profile': 'muse-intent-v1', 'action': action, 'parameters': parameters}
-    if action == 'forward_request':
+    if action == 'forward_request' and 'url' not in parameters:
         value['destination'] = settings.FORWARD_BASE_URL
     if action == 'sandbox_request':
         value['sandbox_run_id'] = settings.SANDBOX_RUN_ID

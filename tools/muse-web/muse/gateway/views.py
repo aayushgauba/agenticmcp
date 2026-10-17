@@ -121,6 +121,6 @@ def approvals(request, intent_id=None):
             return redirect('review', intent_id=intent.id)
         if request.method != 'GET':
             raise Rejected('Unsupported method')
-        return render(request, 'muse/review.html', {'intent': intent, 'parameters': json.dumps(intent.parameters, indent=2, ensure_ascii=True), 'destination': settings.FORWARD_BASE_URL if intent.action == 'forward_request' else None})
+        return render(request, 'muse/review.html', {'intent': intent, 'parameters': json.dumps(intent.parameters, indent=2, ensure_ascii=True), 'destination': (intent.parameters.get('url') or settings.FORWARD_BASE_URL) if intent.action == 'forward_request' else None})
     except Rejected as error:
         return JsonResponse({'error': str(error)}, status=400)

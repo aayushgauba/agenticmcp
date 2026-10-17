@@ -46,8 +46,8 @@ def status(actor, intent_id):
         'review_url': settings.PUBLIC_URL + '/approvals/' + str(intent.id) + '/',
         'expires_at': intent.expires_at.isoformat()}
     if intent.action == 'forward_request':
-        result['destination'] = settings.FORWARD_BASE_URL or None
-        result['forwarding_configured'] = bool(settings.FORWARD_BASE_URL)
+        result['destination'] = intent.parameters.get('url') or settings.FORWARD_BASE_URL or None
+        result['forwarding_configured'] = 'url' in intent.parameters or bool(settings.FORWARD_BASE_URL)
     if intent.status == 'approved' and not expired:
         result['intent_token'] = mint(intent)
     if intent.status in ('succeeded', 'unknown'):
@@ -99,7 +99,7 @@ def _execute(actor, intent_id, action, parameters, intent_token):
     if not intent.approved_by_id or not intent.approved_at:
         raise Rejected('Independent approval is missing')
     if action == 'forward_request':
-        destination()  # Fail before consuming approval when forwarding is unconfigured.
+        destination(parameters)  # Unconfigured legacy path requests remain queued.
     # Atomic compare-and-swap works on SQLite too. Consume before external I/O
     # and commit immediately: concurrent requests/replays cannot both execute.
     with transaction.atomic():

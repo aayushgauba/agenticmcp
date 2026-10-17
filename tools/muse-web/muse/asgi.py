@@ -67,7 +67,7 @@ async def action_schemas(ctx: Context) -> dict:
     """Return supported request schemas without making an outbound call."""
     actor(ctx)
     from muse.gateway.policy import action_schemas
-    return {'actions': action_schemas(), 'forwarding_configured': bool(settings.FORWARD_BASE_URL)}
+    return {'actions': action_schemas(), 'forwarding_configured': True, 'destination_mode': 'per_request_public_https', 'legacy_base_configured': bool(settings.FORWARD_BASE_URL)}
 
 
 mcp_app = mcp.streamable_http_app()

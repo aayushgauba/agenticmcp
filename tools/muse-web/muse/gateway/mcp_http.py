@@ -95,7 +95,7 @@ def endpoint(request):
             return error(identifier, -32602, 'Arguments do not match the tool schema')
         try:
             if tool['name'] == 'action_schemas':
-                value = {'actions': action_schemas(), 'forwarding_configured': bool(settings.FORWARD_BASE_URL)}
+                value = {'actions': action_schemas(), 'forwarding_configured': True, 'destination_mode': 'per_request_public_https', 'legacy_base_configured': bool(settings.FORWARD_BASE_URL)}
             else:
                 handler = {'propose_action': service.propose, 'get_intent': service.status,
                            'execute_action': service.execute}[tool['name']]

@@ -191,11 +191,11 @@ MUSE_FORWARD_BASE_URL=
 MUSE_FORWARD_BEARER_TOKEN=
 ```
 
-Leave forwarding blank for a receive-and-review inbox with no outbound effects.
-To enable execution, configure one trusted bare HTTPS destination origin.
-Changing that origin invalidates earlier proposals. Upstream credentials stay
-server-side; forwarding rejects arbitrary URLs/headers and never follows
-redirects. The direct sandbox bypass remains disabled and unrouted.
+Full-URL forwarding is available without a configured base origin. Legacy
+relative `path` requests still need `MUSE_FORWARD_BASE_URL`. Changing that base
+invalidates legacy proposals; full-URL approvals bind their own destination.
+Credentials configured with `MUSE_FORWARD_BEARER_TOKEN` are injected only for
+legacy path requests, never for caller-selected URLs. The direct sandbox bypass remains disabled and unrouted.
 
 Reload the app in the PythonAnywhere Web tab. Configure Muse with
 `https://unau.pythonanywhere.com/mcp` and only the connector token in its secure
@@ -211,3 +211,38 @@ python manage.py test shop muse.gateway --settings=muse.test_settings
 python manage.py check
 python manage.py makemigrations --check --dry-run
 ```
+
+
+## Forward to a different API on each request
+
+Keep Muse's connector configured only for this gateway host. Muse calls this
+server with its connector bearer credential; the server makes the separately
+approved outbound request. No destination-domain allowlist is required by the
+application. For example, call `propose_action` with:
+
+```json
+{
+  "action": "forward_request",
+  "parameters": {"method": "GET", "url": "https://www.google.com/"}
+}
+```
+
+Return the review URL, wait for independent approval, poll `get_intent`, and
+execute with the same parameters and the approved intent token. Approval binds
+the full URL, including path/query, method, permitted headers, and exact body.
+Never submit both `url` and `path`. Optional `headers` currently supports only
+`Accept` and `Content-Type`; `body` is exact UTF-8 text. Target API credentials
+are not supported for full-URL mode in this version: neither connector nor
+legacy upstream credentials are sent to those destinations. Do not put secrets
+in URL queries, which are persisted with proposal/audit data.
+
+Only public HTTPS destinations are accepted. Localhost, private/link-local and
+other non-public addresses, embedded URL credentials, fragments, and ambiguous
+URLs are refused. DNS is checked at execution; all answers must be public and
+the socket is pinned to a checked IP while TLS verifies the original hostname.
+Redirects are returned without following. No proxy environment variables are
+used. The socket timeout is 20 seconds, bodies are limited to one MiB, compressed
+responses are refused, and failed/uncertain executions are never retried.
+Hosting-provider egress rules still apply; application support cannot override
+a restricted hosting plan's network access policy. Deploy/reload the updated
+source and refresh Muse's discovered schemas to use the new `url` field.

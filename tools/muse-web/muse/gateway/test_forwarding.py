@@ -114,20 +114,18 @@ class ForwardingTests(KeyFixture, TestCase):
 
     @override_settings(FORWARD_BASE_URL='https://api.example.com', FORWARD_BEARER_TOKEN='server-secret')
     def test_forwarding_keeps_origin_no_redirects_and_server_credential(self):
-        calls = []
-        def handler(request):
-            calls.append(request)
-            return httpx.Response(302, headers={'Location': 'https://evil.example', 'Set-Cookie': 'secret=1'}, text='redirect')
-        real_client = httpx.Client
-        def client(**kwargs):
-            self.assertFalse(kwargs['follow_redirects'])
-            self.assertFalse(kwargs['trust_env'])
-            return real_client(transport=httpx.MockTransport(handler), **kwargs)
-        with patch('muse.gateway.forwarding.httpx.Client', side_effect=client):
+        from unittest.mock import MagicMock
+        response = MagicMock(status=302)
+        response.read.return_value = b'redirect'
+        response.getheader.side_effect = lambda name, default='': {'Content-Type': 'text/plain'}.get(name, default)
+        with patch('muse.gateway.forwarding.resolved_address', return_value='8.8.8.8'), \
+                patch('muse.gateway.forwarding.PinnedHTTPSConnection') as factory:
+            connection = factory.return_value
+            connection.getresponse.return_value = response
             result = execute_forward(self.params)
-        self.assertEqual(len(calls), 1)
-        self.assertEqual(str(calls[0].url), 'https://api.example.com/jobs')
-        self.assertEqual(calls[0].headers['Authorization'], 'Bearer server-secret')
-        self.assertEqual(calls[0].content, self.params['body'].encode())
+        factory.assert_called_once_with('api.example.com', 443, '8.8.8.8')
+        connection.request.assert_called_once_with('POST', '/jobs', body=self.params['body'].encode(),
+            headers={**self.params['headers'], 'Authorization': 'Bearer server-secret'})
+        connection.close.assert_called_once()
         self.assertEqual(result['status_code'], 302)
         self.assertNotIn('headers', result)
